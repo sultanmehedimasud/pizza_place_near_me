@@ -4,11 +4,23 @@ from OpenGL.GL import *
 from OpenGL.GLUT import *
 from OpenGL.GLU import *
 
+class Entity:
+    def __init__(self, x, y, z):
+        self.position = [x, y, z]
+
+    def distance_to(self, other):
+        # Calculate the Euclidean distance to another entity
+        return math.sqrt(
+            (self.position[0] - other.position[0]) ** 2 +
+            (self.position[1] - other.position[1]) ** 2 +
+            (self.position[2] - other.position[2]) ** 2
+        )
+
 class GameSettings:
     def __init__(self):
         self.grid_size = 600
-        self.window_width = 800
-        self.window_height = 800
+        self.window_width = 1200  # Changed from 800 to 1200
+        self.window_height = 600  # Changed from 800 to 600
         self.started = False
         self.game_over = False
         self.score = 0
@@ -18,86 +30,88 @@ class GameSettings:
         self.time_remaining = 180  # 3 minutes per level
         self.last_time_update = 0
 
+
 class Camera:
     def __init__(self):
-        self.position = [0, 500, 500]  # Default camera position
+        self.offset = [0, -200, 150]  # Offset from the player in third-person view
         self.fov = 120
         self.mode = 0  # 0 = third-person, 1 = first-person
-        
+
+    def move(self, direction):
+        move_speed = 10
+        if direction == "up":
+            self.offset[2] += move_speed
+        elif direction == "down":
+            self.offset[2] -= move_speed
+        elif direction == "left":
+            self.offset[0] -= move_speed
+        elif direction == "right":
+            self.offset[0] += move_speed
+
     def setup(self):
         glMatrixMode(GL_PROJECTION)
         glLoadIdentity()
         gluPerspective(self.fov, 1.0, 0.1, 1500)
         glMatrixMode(GL_MODELVIEW)
         glLoadIdentity()
-        
+
     def position_camera(self, player):
         if self.mode == 0:  # Third-person view
-            gluLookAt(*self.position, 0, 0, 0, 0, 0, 1)
+            # Rotate the camera offset based on the player's angle
+            angle_rad = math.radians(player.angle)
+            cam_x = player.position[0] + self.offset[0] * math.cos(angle_rad) - self.offset[1] * math.sin(angle_rad)
+            cam_y = player.position[1] + self.offset[0] * math.sin(angle_rad) + self.offset[1] * math.cos(angle_rad)
+            cam_z = player.position[2] + self.offset[2]
+            gluLookAt(cam_x, cam_y, cam_z, player.position[0], player.position[1], player.position[2], 0, 0, 1)
         else:  # First-person view
-            # Camera follows player's position and direction
-            cam_height = 100
+            # Camera is positioned at the player's head and looks in the direction the player is facing
+            cam_height = 30
             look_x = player.position[0] + 100 * math.cos(math.radians(player.angle))
             look_y = player.position[1] + 100 * math.sin(math.radians(player.angle))
-            
             gluLookAt(player.position[0], player.position[1], player.position[2] + cam_height,
-                      look_x, look_y, player.position[2] + cam_height,
-                      0, 0, 1)
-    
-    def move(self, direction):
-        if direction == "up":
-            self.position[2] += 10
-        elif direction == "down":
-            self.position[2] -= 10
-        elif direction == "left":
-            self.position[0] -= 10
-        elif direction == "right":
-            self.position[0] += 10
-            
-    def toggle_mode(self):
-        self.mode = 1 - self.mode
+                      look_x, look_y, player.position[2] + cam_height, 0, 0, 1)
 
-class Entity:
-    def __init__(self, x=0, y=0, z=0):
-        self.position = [x, y, z]
-        
-    def distance_to(self, other_entity):
-        return math.sqrt(
-            (self.position[0] - other_entity.position[0])**2 + 
-            (self.position[1] - other_entity.position[1])**2 + 
-            (self.position[2] - other_entity.position[2])**2
-        )
+    def toggle_mode(self):
+        # Toggle between third-person and first-person modes
+        self.mode = 1 - self.mode
 
 class Player(Entity):
     def __init__(self):
         super().__init__(0, 0, 30)
         self.angle = 0
+        self.speed = 10  # Movement speed
         self.cheat_mode = False
         self.holding_ingredient = None
         self.holding_pizza = None
         self.inventory = []
-        
+
     def move_forward(self):
-        self.position[0] += 10 * math.cos(math.radians(self.angle))
-        self.position[1] += 10 * math.sin(math.radians(self.angle))
-        
+        # Move in the direction the player is facing
+        self.position[0] += self.speed * math.sin(math.radians(self.angle))
+        self.position[1] += self.speed * math.cos(math.radians(self.angle))
+
     def move_backward(self):
-        self.position[0] -= 10 * math.cos(math.radians(self.angle))
-        self.position[1] -= 10 * math.sin(math.radians(self.angle))
-        
+        # Move in the opposite direction the player is facing
+        self.position[0] -= self.speed * math.sin(math.radians(self.angle))
+        self.position[1] -= self.speed * math.cos(math.radians(self.angle))
+
     def move_left(self):
-        self.position[0] += 10 * math.cos(math.radians(self.angle - 90))
-        self.position[1] += 10 * math.sin(math.radians(self.angle - 90))
-        
+        # Move perpendicular to the left of the player's facing direction
+        self.position[0] -= self.speed * math.cos(math.radians(self.angle))
+        self.position[1] += self.speed * math.sin(math.radians(self.angle))
+
     def move_right(self):
-        self.position[0] += 10 * math.cos(math.radians(self.angle + 90))
-        self.position[1] += 10 * math.sin(math.radians(self.angle + 90))
-        
+        # Move perpendicular to the right of the player's facing direction
+        self.position[0] += self.speed * math.cos(math.radians(self.angle))
+        self.position[1] -= self.speed * math.sin(math.radians(self.angle))
+
     def turn_left(self):
         self.angle += 5
-        
+        self.angle %= 360  # Keep angle within 0-359 degrees
+
     def turn_right(self):
         self.angle -= 5
+        self.angle %= 360  # Keep angle within 0-359 degrees
         
     def toggle_cheat_mode(self):
         self.cheat_mode = not self.cheat_mode
@@ -1016,7 +1030,7 @@ class HUD:
         glMatrixMode(GL_PROJECTION)
         glPushMatrix()
         glLoadIdentity()
-        gluOrtho2D(0, 800, 0, 800)
+        gluOrtho2D(0, self.game_settings.window_width, 0, self.game_settings.window_height)  # Use new window size
         
         glMatrixMode(GL_MODELVIEW)
         glPushMatrix()
@@ -1030,6 +1044,7 @@ class HUD:
         glMatrixMode(GL_PROJECTION)
         glPopMatrix()
         glMatrixMode(GL_MODELVIEW)
+
         
     def draw(self):
         # Draw game information
@@ -1182,15 +1197,14 @@ def special_key_callback(key, x, y):
         game.camera.move("right")
 
 def mouse_callback(button, state, x, y):
-    pass  # We'll handle interactions with keyboard in this game
+    pass  # We'll use mouse events for pizza making 
 
 def main():
     glutInit()
     glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH)
     
     initialize_game()
-    
-    glutInitWindowSize(game.settings.window_width, game.settings.window_height)
+    glutInitWindowSize(game.settings.window_width, game.settings.window_height)  # Now 1200x600
     glutInitWindowPosition(0, 0)
     glutCreateWindow(b"Pizza Ready")
     
@@ -1204,5 +1218,9 @@ def main():
     
     glutMainLoop()
 
+
 if __name__ == '__main__':
     main()
+    def draw(self):
+        # Placeholder for drawing the entity
+        pass
