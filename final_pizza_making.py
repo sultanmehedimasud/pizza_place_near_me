@@ -177,18 +177,88 @@ def draw_toppings_bar():
             draw_text(position[0] - 26, position[1] - 60, "Cheese")
         elif topping == "sausage":
             draw_circle(position[0], position[1], 40, (0.6, 0.3, 0))
+            # Draw 4 big horizontal rectangles
+            draw_rect(position[0] - 25, position[1] + 20, 50, 5, (0.5, 0.2, 0.1))
+            draw_rect(position[0] - 35, position[1] + 5, 50, 5, (0.5, 0.2, 0.1))
+            draw_rect(position[0] - 15, position[1] - 10, 50, 5, (0.5, 0.2, 0.1))
+            draw_rect(position[0] - 25, position[1] - 25, 50, 5, (0.5, 0.2, 0.1))
             draw_text(position[0] - 29, position[1] - 60, "Sausage")
+
         elif topping == "pepperoni":
             draw_circle(position[0], position[1], 40, (1.0, 0.5, 0.0))
+            # Add 4 reddish circles
+            offsets = [(-15, 10), (10, 15), (-10, -15), (15, -10)]
+            for dx, dy in offsets:
+                draw_circle(position[0] + dx, position[1] + dy, 9, (0.9, 0.2, 0.2))
             draw_text(position[0] - 37, position[1] - 60, "Pepperoni")
+
         elif topping == "onion":
-            draw_circle(position[0], position[1], 40, (1, 1, 1))
+            draw_circle(position[0], position[1], 40, (1, 0, 1))
+            # Add 6 fixed triangles
+            
+            glColor3f(0.8, 0.6, 1.0)
+            glBegin(GL_TRIANGLES)
+            glVertex2f(position[0], position[1] + 5)  # Top vertex
+            glVertex2f(position[0] - 5, position[1] - 5)  # Bottom-left vertex
+            glVertex2f(position[0] + 5, position[1] - 5)  # Bottom-right vertex
+            glEnd()
+
+            for i in range(6):
+                angle = i * 60 * math.pi / 180
+                cx = position[0] + 20 * math.cos(angle)
+                cy = position[1] + 20 * math.sin(angle)
+                size = 10
+                glBegin(GL_TRIANGLES)
+                glVertex2f(cx, cy)
+                glVertex2f(cx + size * math.cos(angle + 0.3), cy + size * math.sin(angle + 0.3))
+                glVertex2f(cx + size * math.cos(angle - 0.3), cy + size * math.sin(angle - 0.3))
+                glEnd()
+            for i in range(6):
+                angle = i * 330 * math.pi / 180
+                cx = position[0] + 20 * math.cos(angle)
+                cy = position[1] + 20 * math.sin(angle)
+                size = 8
+                glBegin(GL_TRIANGLES)
+                glVertex2f(cx, cy)
+                glVertex2f(cx + size * math.cos(angle + 0.5), cy + size * math.sin(angle + 0.5))
+                glVertex2f(cx + size * math.cos(angle - 0.5), cy + size * math.sin(angle - 0.5))
+                glEnd()
+            for i in range(6):
+                angle = i * 30 * math.pi / 180
+                cx = position[0] + 20 * math.cos(angle)
+                cy = position[1] + 20 * math.sin(angle)
+                size = 8
+                glBegin(GL_TRIANGLES)
+                glVertex2f(cx, cy)
+                glVertex2f(cx + size * math.cos(angle + 0.7), cy + size * math.sin(angle + 0.7))
+                glVertex2f(cx + size * math.cos(angle - 0.7), cy + size * math.sin(angle - 0.7))
+                glEnd()
             draw_text(position[0] - 22, position[1] - 60, "Onion")
         elif topping == "black_olive":
             draw_circle(position[0], position[1], 40, (0, 0, 0))
+            draw_circle(position[0]-10, position[1]+15, 5, (.2, .2, .2))
+            draw_circle(position[0]+10, position[1]+27, 8, (.2, .2, .2))
+            draw_circle(position[0]-18, position[1]-18, 4, (.2, 0.2, 0.2))
+            draw_circle(position[0]+20, position[1]-20,6, (0.2, 0.2, 0.2))
+            draw_circle(position[0]+4, position[1]-21, 7, (.2, .2, .2))
+            draw_circle(position[0]+16, position[1]+14, 6, (.2, .2, .2))
+            draw_circle(position[0]-12, position[1]+7, 4, (.2, .2, .2))
+            draw_circle(position[0], position[1], 6, (.2, .2, .2))
+            draw_circle(position[0]-28, position[1]+3, 7, (.2, .2, .2))
             draw_text(position[0] - 27, position[1] - 60, "Olives")
+
         elif topping == "oregano":
-            draw_circle(position[0], position[1], 40, (0, 0.5, 0))
+            draw_circle(position[0], position[1], 40, (0, 0.3, 0))
+            draw_circle(position[0]+10, position[1]+15, 5, (0,.7,0))
+            draw_circle(position[0]-10, position[1]+27, 8, (0,.7,0))
+            draw_circle(position[0]+18, position[1]-18, 4, (0,.7,0))
+            draw_circle(position[0]-20, position[1]-20,6, (0,.7,0))
+            draw_circle(position[0]-4, position[1]-21, 7, (0,.7,0))
+            draw_circle(position[0]-16, position[1]+14, 6, (0,.7,0))
+            draw_circle(position[0]+12, position[1]+7, 4, (0,.7,0))
+            draw_circle(position[0], position[1], 6, (0,.7,.0))
+            draw_circle(position[0]+28, position[1]+3, 7, (0,.7,0))
+
             draw_text(position[0] - 30, position[1] - 60, "Oregano")
         
         # Highlight selected toppings
@@ -213,23 +283,28 @@ def draw_pizza():
             elif topping == "cheese":
                 draw_circle(pizza_position[0], pizza_position[1], 45, (1.0, 0.9, 0.4))
             elif topping == "sausage":
-                for i in range(6):
-                    angle = i * 60 * math.pi / 180
-                    x = pizza_position[0] + math.cos(angle) * 25
-                    y = pizza_position[1] + math.sin(angle) * 25
-                    draw_circle(x, y, 8, (0.6, 0.3, 0))
+             draw_rect(pizza_position[0] - 25, pizza_position[1] + 20, 50, 5, (0.5, 0.2, 0.1))
+             draw_rect(pizza_position[0] - 35, pizza_position[1] + 5, 50, 5, (0.5, 0.2, 0.1))
+             draw_rect(pizza_position[0] - 15, pizza_position[1] - 10, 50, 5, (0.5, 0.2, 0.1))
+             draw_rect(pizza_position[0] - 25, pizza_position[1] - 25, 50, 5, (0.5, 0.2, 0.1))
             elif topping == "pepperoni":
                 for i in range(8):
                     angle = i * 45 * math.pi / 180
                     x = pizza_position[0] + math.cos(angle) * 30
                     y = pizza_position[1] + math.sin(angle) * 30
                     draw_circle(x, y, 7, (1.0, 0.5, 0.0))
-            elif topping == "onion":
-                for i in range(10):
-                    angle = i * 36 * math.pi / 180
-                    x = pizza_position[0] + math.cos(angle) * 35
-                    y = pizza_position[1] + math.sin(angle) * 35
-                    draw_circle(x, y, 5, (1, 0.9, 0.9))
+            elif topping == "onion":           
+              for i in range(6):
+                angle = i * 60 * math.pi / 180
+                cx = pizza_position[0] + 20 * math.cos(angle)
+                cy = pizza_position[1] + 20 * math.sin(angle)
+                size = 18
+                glColor3f(0.8, 0.6, 1.0)
+                glBegin(GL_TRIANGLES)
+                glVertex2f(cx, cy)
+                glVertex2f(cx + size * math.cos(angle + 0.3), cy + size * math.sin(angle + 0.3))
+                glVertex2f(cx + size * math.cos(angle - 0.3), cy + size * math.sin(angle - 0.3))
+                glEnd()
             elif topping == "black_olive":
                 for i in range(7):
                     angle = i * 51.4 * math.pi / 180
@@ -260,11 +335,12 @@ def draw_pizza():
             elif topping == "cheese":
                 draw_circle(pizza_position[0], pizza_position[1], 45, (0.9, 0.8, 0.4))
             elif topping == "sausage":
-                for i in range(6):
-                    angle = i * 60 * math.pi / 180
-                    x = pizza_position[0] + math.cos(angle) * 25
-                    y = pizza_position[1] + math.sin(angle) * 25
-                    draw_circle(x, y, 8, (0.5, 0.25, 0))
+             glColor3f(0.5, 0.25, 0)
+             draw_rect(pizza_position[0] - 25, pizza_position[1] + 20, 50, 5, (0.5, 0.2, 0.1))
+             draw_rect(pizza_position[0] - 35, pizza_position[1] + 5, 50, 5, (0.5, 0.2, 0.1))
+             draw_rect(pizza_position[0] - 15, pizza_position[1] - 10, 50, 5, (0.5, 0.2, 0.1))
+             draw_rect(pizza_position[0] - 25, pizza_position[1] - 25, 50, 5, (0.5, 0.2, 0.1))
+
             elif topping == "pepperoni":
                 for i in range(8):
                     angle = i * 45 * math.pi / 180
@@ -272,11 +348,17 @@ def draw_pizza():
                     y = pizza_position[1] + math.sin(angle) * 30
                     draw_circle(x, y, 7, (0.7, 0.5, 0.0))
             elif topping == "onion":
-                for i in range(10):
-                    angle = i * 36 * math.pi / 180
-                    x = pizza_position[0] + math.cos(angle) * 35
-                    y = pizza_position[1] + math.sin(angle) * 35
-                    draw_circle(x, y, 5, (0.9, 0.8, 0.7))
+              for i in range(6):
+                angle = i * 60 * math.pi / 180
+                cx = pizza_position[0] + 20 * math.cos(angle)
+                cy = pizza_position[1] + 20 * math.sin(angle)
+                size = 18
+                glColor3f(0.3, .1, .5)
+                glBegin(GL_TRIANGLES)
+                glVertex2f(cx, cy)
+                glVertex2f(cx + size * math.cos(angle + 0.3), cy + size * math.sin(angle + 0.3))
+                glVertex2f(cx + size * math.cos(angle - 0.3), cy + size * math.sin(angle - 0.3))
+                glEnd()
             elif topping == "black_olive":
                 for i in range(7):
                     angle = i * 51.4 * math.pi / 180
@@ -306,12 +388,12 @@ def draw_pizza_in_box():
                 draw_circle(pizza_in_box_position[0], pizza_in_box_position[1]-15, 48, (0.7, 0.15, 0.05))
             elif topping == "cheese":
                 draw_circle(pizza_in_box_position[0], pizza_in_box_position[1]-15, 45, (0.9, 0.8, 0.4))
-            elif topping == "sausage":
-                for i in range(6):
-                    angle = i * 60 * math.pi / 180
-                    x = pizza_in_box_position[0] + math.cos(angle) * 25
-                    y = pizza_in_box_position[1]-15 + math.sin(angle) * 25
-                    draw_circle(x, y, 8, (0.5, 0.25, 0))
+            elif topping == "sausage": 
+             glColor3f(0.5, 0.25, 0)      
+             draw_rect(pizza_in_box_position[0] - 25, pizza_in_box_position[1] + 12, 50, 5, (0.5, 0.2, 0.1))
+             draw_rect(pizza_in_box_position[0] - 35, pizza_in_box_position[1] - 8, 50, 5, (0.5, 0.2, 0.1))
+             draw_rect(pizza_in_box_position[0] - 15, pizza_in_box_position[1] - 28, 50, 5, (0.5, 0.2, 0.1))
+             draw_rect(pizza_in_box_position[0] - 25, pizza_in_box_position[1] - 48, 50, 5, (0.5, 0.2, 0.1))
             elif topping == "pepperoni":
                 for i in range(8):
                     angle = i * 45 * math.pi / 180
@@ -319,11 +401,17 @@ def draw_pizza_in_box():
                     y = pizza_in_box_position[1]-15 + math.sin(angle) * 30
                     draw_circle(x, y, 7, (0.7, 0.5, 0.0))
             elif topping == "onion":
-                for i in range(10):
-                    angle = i * 36 * math.pi / 180
-                    x = pizza_in_box_position[0] + math.cos(angle) * 35
-                    y = pizza_in_box_position[1]-15 + math.sin(angle) * 35
-                    draw_circle(x, y, 5, (0.9, 0.8, 0.7))
+              glColor3f(.3, .1, .5)
+              for i in range(7):
+                    angle = i * 51.4 * math.pi / 180
+                    cx = pizza_in_box_position[0] + math.cos(angle) * 32
+                    cy = pizza_in_box_position[1]-15 + math.sin(angle) * 32
+                    size = 18
+                    glBegin(GL_TRIANGLES)
+                    glVertex2f(cx, cy)
+                    glVertex2f(cx + size * math.cos(angle + 0.3), cy + size * math.sin(angle + 0.3))
+                    glVertex2f(cx + size * math.cos(angle - 0.3), cy + size * math.sin(angle - 0.3))
+                    glEnd()
             elif topping == "black_olive":
                 for i in range(7):
                     angle = i * 51.4 * math.pi / 180
