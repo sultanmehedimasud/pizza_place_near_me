@@ -346,7 +346,7 @@ def draw_pizza():
                     angle = i * 45 * math.pi / 180
                     x = pizza_position[0] + math.cos(angle) * 30
                     y = pizza_position[1] + math.sin(angle) * 30
-                    draw_circle(x, y, 7, (0.7, 0.5, 0.0))
+                    draw_circle(x, y, 7, (0.7, 0.35, 0.2))
             elif topping == "onion":
               for i in range(6):
                 angle = i * 60 * math.pi / 180
@@ -399,13 +399,13 @@ def draw_pizza_in_box():
                     angle = i * 45 * math.pi / 180
                     x = pizza_in_box_position[0] + math.cos(angle) * 30
                     y = pizza_in_box_position[1]-15 + math.sin(angle) * 30
-                    draw_circle(x, y, 7, (0.7, 0.5, 0.0))
+                    draw_circle(x, y, 7, (0.7, 0.35, 0.2))
             elif topping == "onion":
               glColor3f(.3, .1, .5)
               for i in range(7):
                     angle = i * 51.4 * math.pi / 180
-                    cx = pizza_in_box_position[0] + math.cos(angle) * 32
-                    cy = pizza_in_box_position[1]-15 + math.sin(angle) * 32
+                    cx = pizza_in_box_position[0] + math.cos(angle) * 25
+                    cy = pizza_in_box_position[1]-15 + math.sin(angle) * 25
                     size = 18
                     glBegin(GL_TRIANGLES)
                     glVertex2f(cx, cy)
