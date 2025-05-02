@@ -30,38 +30,25 @@ class GameSettings:
         self.time_remaining = 180  # 3 minutes per level
         self.last_time_update = 0
 
-# Add this after the GameSettings class
-class InputManager:
-    def __init__(self):
-        self.pressed_keys = set()
-    
-    def key_down(self, key):
-        self.pressed_keys.add(key)
-    
-    def key_up(self, key):
-        self.pressed_keys.discard(key)
-    
-    def is_key_pressed(self, key):
-        return key in self.pressed_keys
 
 class Camera:
     def __init__(self):
-        # Adjusted to allign with the hand and start behind the player
-        self.offset = [0, 0, 150]
+        self.offset = [0, -200, 150]  # Offset from the player in third-person view
         self.fov = 120
         self.mode = 0  # 0 = third-person, 1 = first-person
-        self.rotation_angle = 180  # Start behind the player
-        self.zoom_level = 150
 
     def move(self, direction):
+        move_speed = 10
         if direction == "up":
-            self.zoom_level = max(50, self.zoom_level - 10)  # Zoom in
+            self.offset[2] += move_speed
         elif direction == "down":
-            self.zoom_level = min(300, self.zoom_level + 10)  # Zoom out
+            self.offset[2] -= move_speed
         elif direction == "left":
-            self.rotation_angle += 5  # Rotate left
+            self.offset[0] -= move_speed
+            self.offset[1] += move_speed
         elif direction == "right":
-            self.rotation_angle -= 5  # Rotate right
+            self.offset[0] += move_speed
+            self.offset[1] -= move_speed
 
     def setup(self):
         glMatrixMode(GL_PROJECTION)
@@ -72,10 +59,11 @@ class Camera:
 
     def position_camera(self, player):
         if self.mode == 0:  # Third-person view
-            angle_rad = math.radians(player.angle + self.rotation_angle)
-            cam_x = player.position[0] + self.zoom_level * math.cos(angle_rad)
-            cam_y = player.position[1] + self.zoom_level * math.sin(angle_rad)
-            cam_z = min(player.position[2] + self.offset[2], 300)  # Keep camera within building height
+            # Rotate the camera offset based on the player's angle
+            angle_rad = math.radians(player.angle)
+            cam_x = player.position[0] + self.offset[0] * math.cos(angle_rad) - self.offset[1] * math.sin(angle_rad)
+            cam_y = player.position[1] + self.offset[0] * math.sin(angle_rad) + self.offset[1] * math.cos(angle_rad)
+            cam_z = player.position[2] + self.offset[2]
             gluLookAt(cam_x, cam_y, cam_z, player.position[0], player.position[1], player.position[2], 0, 0, 1)
         else:  # First-person view
             # Camera is positioned at the player's head and looks in the direction the player is facing
@@ -89,11 +77,6 @@ class Camera:
         # Toggle between third-person and first-person modes
         self.mode = 1 - self.mode
 
-    def _within_bounds(self, x, y):
-        # Ensure the camera stays within the room boundaries
-        boundary = game.settings.grid_size - 50  # Adjusted for camera offset
-        return -boundary <= x <= boundary and -boundary <= y <= boundary
-
 
 class Player(Entity):
     def __init__(self):
@@ -104,16 +87,15 @@ class Player(Entity):
         self.holding_ingredient = None
         self.holding_pizza = None
         self.inventory = []
-        self.near_pizza_table = False  # Track if near pizza table
         
-        # Adjust torso to touch hands
+        # Define body parts with properties
         self.body_parts = {
-            'head': {'radius': 18, 'color': (0.8, 0.6, 0.4), 'position': (0, 0, 80)},
-            'torso': {'size': (25, 15, 40), 'color': (0.2, 0.6, 0.3), 'position': (0, 0, 50)},  # Adjusted position
+            'head': {'radius': 25, 'color': (0.8, 0.6, 0.4), 'position': (0, 0, 70)},
+            'torso': {'size': 30, 'color': (0.2, 0.6, 0.3), 'position': (0, 0, 30)},
             'arm_left': {'top_radius': 10, 'bottom_radius': 2, 'length': 40, 
-                         'color': (1.0, 0.9, 0.7), 'position': (20, 0, 50)},
+                         'color': (1.0, 0.9, 0.7), 'position': (20, 0, 40)},
             'arm_right': {'top_radius': 9, 'bottom_radius': 2, 'length': 40, 
-                          'color': (1.0, 0.9, 0.7), 'position': (-20, 0, 50)},
+                          'color': (1.0, 0.9, 0.7), 'position': (-20, 0, 40)},
             'leg_left': {'top_radius': 10, 'bottom_radius': 2, 'length': 50, 
                          'color': (0, 0, 1), 'position': (10, 0, 30)},
             'leg_right': {'top_radius': 10, 'bottom_radius': 2, 'length': 50, 
@@ -121,40 +103,28 @@ class Player(Entity):
         }
 
     def move_forward(self):
+        # Move in the direction the player is facing
         angle_rad = math.radians(self.angle)
-        new_x = self.position[0] + self.speed * math.cos(angle_rad)
-        new_y = self.position[1] + self.speed * math.sin(angle_rad)
-        if self._within_bounds(new_x, new_y) and not self._collides_with_pizza_table(new_x, new_y):
-            self.position[0] = new_x
-            self.position[1] = new_y
-        self._check_collision()
+        self.position[0] += self.speed * math.sin(angle_rad)
+        self.position[1] += self.speed * math.cos(angle_rad)
     
     def move_backward(self):
+        # Move in the opposite direction the player is facing
         angle_rad = math.radians(self.angle)
-        new_x = self.position[0] - self.speed * math.cos(angle_rad)
-        new_y = self.position[1] - self.speed * math.sin(angle_rad)
-        if self._within_bounds(new_x, new_y):
-            self.position[0] = new_x
-            self.position[1] = new_y
-        self._check_collision()
+        self.position[0] -= self.speed * math.sin(angle_rad)
+        self.position[1] -= self.speed * math.cos(angle_rad)
     
     def move_left(self):
-        angle_rad = math.radians(self.angle + 90)
-        new_x = self.position[0] + self.speed * math.cos(angle_rad)
-        new_y = self.position[1] + self.speed * math.sin(angle_rad)
-        if self._within_bounds(new_x, new_y) and not self._collides_with_objects(new_x, new_y):
-            self.position[0] = new_x
-            self.position[1] = new_y
-        self._check_collision()
+        # Move perpendicular to the left of the player's facing direction
+        angle_rad = math.radians(self.angle - 90)  # Subtract 90 degrees for left direction
+        self.position[0] += self.speed * math.sin(angle_rad)
+        self.position[1] += self.speed * math.cos(angle_rad)
     
     def move_right(self):
-        angle_rad = math.radians(self.angle - 90)
-        new_x = self.position[0] + self.speed * math.cos(angle_rad)
-        new_y = self.position[1] + self.speed * math.sin(angle_rad)
-        if self._within_bounds(new_x, new_y) and not self._collides_with_objects(new_x, new_y):
-            self.position[0] = new_x
-            self.position[1] = new_y
-        self._check_collision()
+        # Move perpendicular to the right of the player's facing direction
+        angle_rad = math.radians(self.angle + 90)  # Add 90 degrees for right direction
+        self.position[0] += self.speed * math.sin(angle_rad)
+        self.position[1] += self.speed * math.cos(angle_rad)
 
     def turn_left(self):
         self.angle += 5
@@ -209,8 +179,7 @@ class Player(Entity):
         glColor3f(*part['color'])
         glPushMatrix()
         glTranslatef(*part['position'])
-        glScalef(*part['size'])  # Scale the cube to the desired dimensions
-        glutSolidCube(1)  # Use a unit cube and scale it
+        glutSolidCube(part['size'])
         glPopMatrix()
     
     def _draw_cylinder(self, part_name, rotation=None):
@@ -245,79 +214,25 @@ class Player(Entity):
         
         self._draw_sphere('head')
         self._draw_cube('torso')
-        self._draw_cylinder('arm_left', [(1, 0, 0, -90), (0, 0, 1, self.angle)])  # Adjusted for camera angle
-        self._draw_cylinder('arm_right', [(1, 0, 0, -90), (0, 0, 1, self.angle)])  # Adjusted for camera angle
+        self._draw_cylinder('arm_left', [(1, 0, 0, -90)])
+        self._draw_cylinder('arm_right', [(1, 0, 0, -90)])
         self._draw_cylinder('leg_left', [(1, 0, 0, -180)])
         self._draw_cylinder('leg_right', [(1, 0, 0, -180)])
         
         # Draw held items
         if self.holding_ingredient:
             glPushMatrix()
-            glTranslatef(20 * math.cos(math.radians(self.angle)), 20 * math.sin(math.radians(self.angle)), 40)
+            glTranslatef(0, 20, 40)  # Position in front of player
             self.holding_ingredient.draw()
             glPopMatrix()
             
         if self.holding_pizza:
             glPushMatrix()
-            glTranslatef(20 * math.cos(math.radians(self.angle)), 20 * math.sin(math.radians(self.angle)), 40)
+            glTranslatef(0, 20, 40)  # Position in front of player
             self.holding_pizza.draw()
             glPopMatrix()
         
-        if self.near_pizza_table:
-            game.hud.draw_text(300, 300, "Press F to start making pizza")  # Popup message
-        
         glPopMatrix()
-
-    def _check_collision(self):
-        # Updated to check collision with all objects
-        for obj in (
-            game.pizza_manager.ingredient_stations +
-            [game.pizza_manager.oven, game.pizza_manager.delivery_station, game.pizza_manager.pizza_station] +
-            game.pizza_manager.customer_manager.customers +
-            [game.pizza_manager.shelf]
-        ):
-            if self.distance_to(obj) < 50:  # Collision threshold
-                angle_rad = math.radians(self.angle)
-                self.position[0] -= self.speed * math.cos(angle_rad)
-                self.position[1] -= self.speed * math.sin(angle_rad)
-                return
-        
-        # Check collision with walls
-        boundary = game.settings.grid_size - 50
-        if not (-boundary <= self.position[0] <= boundary and -boundary <= self.position[1] <= boundary):
-            angle_rad = math.radians(self.angle)
-            self.position[0] -= self.speed * math.cos(angle_rad)
-            self.position[1] -= self.speed * math.sin(angle_rad)
-
-    def _within_bounds(self, x, y):
-        # Ensure the player stays within the room boundaries
-        boundary = game.settings.grid_size - 50  # Adjusted for player size
-        return -boundary <= x <= boundary and -boundary <= y <= boundary
-
-    def _collides_with_pizza_table(self, x, y):
-        # Check collision with the pizza table
-        pizza_table = game.pizza_manager.pizza_station
-        collision_distance = 50
-        if math.sqrt((x - pizza_table.position[0]) ** 2 + (y - pizza_table.position[1]) ** 2) < collision_distance:
-            self.near_pizza_table = True
-            return True
-        self.near_pizza_table = False
-        return False
-
-    def _collides_with_objects(self, x, y):
-        # Check collision with all objects in the game
-        collision_distance = 50
-        for obj in (
-            game.pizza_manager.ingredient_stations +
-            [game.pizza_manager.oven, game.pizza_manager.delivery_station, game.pizza_manager.pizza_station] +
-            game.pizza_manager.customer_manager.customers +
-            [game.pizza_manager.shelf]
-        ):
-            dx = abs(x - obj.position[0])
-            dy = abs(y - obj.position[1])
-            if dx < collision_distance and dy < collision_distance:
-                return True
-        return False
 
 class CustomerWaitingArea(Entity):
     def __init__(self, x, y, z):
@@ -345,21 +260,23 @@ class CustomerWaitingArea(Entity):
         glPushMatrix()
         glTranslatef(*self.position)
         
-        try:
-            # Draw waiting area floor (elevated platform)
-            glColor3f(0.7, 0.7, 0.8)  # Light blue-gray
-            glutSolidCube(1)
-            
-            # Draw seats
-            self._draw_seats()
-            
-            # Draw queue markers
-            self._draw_queue_markers()
-            
-            # Draw "Waiting Area" sign
-            self._draw_sign()
-        finally:
-            glPopMatrix()  # Ensure glPopMatrix is always called
+        # Draw waiting area floor (elevated platform)
+        glColor3f(0.7, 0.7, 0.8)  # Light blue-gray
+        glPushMatrix()
+        glScalef(self.width, self.depth, self.height)
+        glutSolidCube(1)
+        glPopMatrix()
+        
+        # Draw seats
+        self._draw_seats()
+        
+        # Draw queue markers
+        self._draw_queue_markers()
+        
+        # Draw "Waiting Area" sign
+        self._draw_sign()
+        
+        glPopMatrix()
     
     def _draw_seats(self):
         # Draw 6 seats in the waiting area
@@ -532,20 +449,19 @@ class IngredientStation(Entity):
         glPushMatrix()
         glTranslatef(*self.position)
         
-        try:
-            # Draw the ingredient shelf/station
-            glColor3f(*self.color)
-            glPushMatrix()
-            glScalef(self.width, self.depth, self.height)
-            glutSolidCube(1)
-            glPopMatrix()
-            
-            # Draw sample of the ingredient on top
-            glTranslatef(0, 0, self.height + 5)
-            sample = self.get_ingredient()
-            sample.draw()
-        finally:
-            glPopMatrix()  # Ensure glPopMatrix is always called
+        # Draw the ingredient shelf/station
+        glColor3f(*self.color)
+        glPushMatrix()
+        glScalef(self.width, self.depth, self.height)
+        glutSolidCube(1)
+        glPopMatrix()
+        
+        # Draw sample of the ingredient on top
+        glTranslatef(0, 0, self.height + 5)
+        sample = self.get_ingredient()
+        sample.draw()
+        
+        glPopMatrix()
 
 class Pizza(Entity):
     def __init__(self, x=0, y=0, z=0):
@@ -621,63 +537,62 @@ class Pizza(Entity):
         glPushMatrix()
         glTranslatef(*self.position)
         
-        try:
-            # Draw base - adapt color based on cooking level
-            cooking_color = min(self.cooking_level / 100, 1.0)
-            base_color = (0.9 - cooking_color * 0.5, 0.8 - cooking_color * 0.6, 0.6 - cooking_color * 0.5)
-            
-            # Draw the pizza base
-            glColor3f(*base_color)
-            gluDisk(gluNewQuadric(), 0, 30, 20, 1)
-            
-            height = 2  # Starting height for stacking ingredients
-            
-            # Draw ingredients
-            for ingredient in self.ingredients:
-                if ingredient.name == "dough":
-                    continue  # Base already drawn
+        # Draw base - adapt color based on cooking level
+        cooking_color = min(self.cooking_level / 100, 1.0)
+        base_color = (0.9 - cooking_color * 0.5, 0.8 - cooking_color * 0.6, 0.6 - cooking_color * 0.5)
+        
+        # Draw the pizza base
+        glColor3f(*base_color)
+        gluDisk(gluNewQuadric(), 0, 30, 20, 1)
+        
+        height = 2  # Starting height for stacking ingredients
+        
+        # Draw ingredients
+        for ingredient in self.ingredients:
+            if ingredient.name == "dough":
+                continue  # Base already drawn
+                
+            if ingredient.name == "sauce":
+                glColor3f(0.8, 0.1, 0.1)
+                glTranslatef(0, 0, height)
+                gluDisk(gluNewQuadric(), 0, 28, 20, 1)
+                height += 1
+            elif ingredient.name == "cheese":
+                glColor3f(1.0, 0.8, 0.0)
+                glTranslatef(0, 0, height)
+                gluDisk(gluNewQuadric(), 0, 27, 20, 1)
+                height += 1
+            elif "vegetable" in ingredient.name:
+                # Randomly place vegetables on the pizza
+                for i in range(5):
+                    angle = random.uniform(0, 360)
+                    dist = random.uniform(0, 20)
+                    x = dist * math.cos(math.radians(angle))
+                    y = dist * math.sin(math.radians(angle))
                     
-                if ingredient.name == "sauce":
-                    glColor3f(0.8, 0.1, 0.1)
-                    glTranslatef(0, 0, height)
-                    gluDisk(gluNewQuadric(), 0, 28, 20, 1)
-                    height += 1
-                elif ingredient.name == "cheese":
-                    glColor3f(1.0, 0.8, 0.0)
-                    glTranslatef(0, 0, height)
-                    gluDisk(gluNewQuadric(), 0, 27, 20, 1)
-                    height += 1
-                elif "vegetable" in ingredient.name:
-                    # Randomly place vegetables on the pizza
-                    for i in range(5):
-                        angle = random.uniform(0, 360)
-                        dist = random.uniform(0, 20)
-                        x = dist * math.cos(math.radians(angle))
-                        y = dist * math.sin(math.radians(angle))
-                        
-                        glPushMatrix()
-                        glTranslatef(x, y, height)
-                        glColor3f(0.1, 0.8, 0.1)
-                        glutSolidCube(5)
-                        glPopMatrix()
-                    height += 2
-                elif "meat" in ingredient.name:
-                    # Randomly place meat on the pizza
-                    for i in range(5):
-                        angle = random.uniform(0, 360)
-                        dist = random.uniform(0, 20)
-                        x = dist * math.cos(math.radians(angle))
-                        y = dist * math.sin(math.radians(angle))
-                        
-                        glPushMatrix()
-                        glTranslatef(x, y, height)
-                        glRotatef(90, 1, 0, 0)
-                        glColor3f(0.7, 0.3, 0.3)
-                        gluCylinder(gluNewQuadric(), 2.5, 2.5, 2, 10, 10)
-                        glPopMatrix()
-                    height += 2
-        finally:
-            glPopMatrix()  # Ensure glPopMatrix is always called
+                    glPushMatrix()
+                    glTranslatef(x, y, height)
+                    glColor3f(0.1, 0.8, 0.1)
+                    glutSolidCube(5)
+                    glPopMatrix()
+                height += 2
+            elif "meat" in ingredient.name:
+                # Randomly place meat on the pizza
+                for i in range(5):
+                    angle = random.uniform(0, 360)
+                    dist = random.uniform(0, 20)
+                    x = dist * math.cos(math.radians(angle))
+                    y = dist * math.sin(math.radians(angle))
+                    
+                    glPushMatrix()
+                    glTranslatef(x, y, height)
+                    glRotatef(90, 1, 0, 0)
+                    glColor3f(0.7, 0.3, 0.3)
+                    gluCylinder(gluNewQuadric(), 2.5, 2.5, 2, 10, 10)
+                    glPopMatrix()
+                height += 2
+        
+        glPopMatrix()
 
 class Oven(Entity):
     def __init__(self, x, y, z):
@@ -1171,7 +1086,7 @@ class Kitchen:
                 glEnd()
         
         # Draw kitchen walls
-        wall_height = 100  # Reduced from 200
+        wall_height = 200
         
         # Back wall (negative Y)
         glColor3f(*self.wall_color)
@@ -1252,13 +1167,14 @@ class Kitchen:
         
         glPopMatrix()
         
-        # Remove the roof by skipping the ceiling drawing code
-        # glBegin(GL_QUADS)
-        # glVertex3f(-self.grid_size, -self.grid_size, 300)  # Ceiling code removed
-        # glVertex3f(self.grid_size, -self.grid_size, 300)
-        # glVertex3f(self.grid_size, self.grid_size, 300)
-        # glVertex3f(-self.grid_size, self.grid_size, 300)
-        # glEnd()
+        # Draw ceiling
+        glColor3f(0.95, 0.95, 0.95)  # White ceiling
+        glBegin(GL_QUADS)
+        glVertex3f(-self.grid_size, -self.grid_size, wall_height)
+        glVertex3f(self.grid_size, -self.grid_size, wall_height)
+        glVertex3f(self.grid_size, self.grid_size, wall_height)
+        glVertex3f(-self.grid_size, self.grid_size, wall_height)
+        glEnd()
 
 class Shelf(Entity):
     def __init__(self, x, y, z, width=200, depth=50, height=150):
@@ -1439,14 +1355,14 @@ class KitchenCounter(Entity):
         
         # Bottom edge
         glPushMatrix()
-        glTranslatef(0, -self.depth/2 + edge_thickness/2, self.height/2)
+        glTranslatef(0, -self.depth/2 - edge_thickness/2, self.height/2)
         glScalef(self.width + edge_thickness*2, edge_thickness, self.height)
         glutSolidCube(1)
         glPopMatrix()
         
         # Left edge
         glPushMatrix()
-        glTranslatef(-self.width/2 + edge_thickness/2, 0, self.height/2)
+        glTranslatef(-self.width/2 - edge_thickness/2, 0, self.height/2)
         glScalef(edge_thickness, self.depth, self.height)
         glutSolidCube(1)
         glPopMatrix()
@@ -1472,8 +1388,8 @@ class PizzaManager:
             IngredientStation("meat1", 250, 150, 30, color=(0.7, 0.3, 0.3)),
             IngredientStation("meat2", 350, 150, 30, color=(0.6, 0.2, 0.2))
         ]
-        # Move oven beside the pizza-making table
-        self.oven = Oven(-150, -300, 30)
+        # Position oven in the opposite corner from the door (negative X, negative Y)
+        self.oven = Oven(450, -450, 30)
         self.delivery_station = DeliveryStation(100, 150, 80)
         self.customer_manager = CustomerManager()
         self.shelf = Shelf(-450, -500, 0)
@@ -1494,8 +1410,7 @@ class PizzaManager:
             elif not player.holding_pizza and self.pizza_station.pizza and self.pizza_station.pizza.is_complete():
                 player.pick_up_pizza(self.pizza_station.pizza)
                 self.pizza_station.pizza = None
-            elif not self.pizza_station.pizza and player.near_pizza_table:
-                # Start pizza-making process
+            elif not self.pizza_station.pizza:
                 self.pizza_station.create_pizza()
         
         if player.distance_to(self.oven) < 50:
@@ -1686,7 +1601,7 @@ class HUD:
             self.draw_text(500, 780, f"Time: {minutes:02d}:{seconds:02d}")
             
             # Draw instructions
-            self.draw_text(10, 30, "WASD: Move, F: Interact, C: Camera, R: Restart")
+            self.draw_text(10, 30, "WASD: Move, E: Interact, C: Camera, R: Restart")
 
 class PizzaGame:
     def __init__(self):
@@ -1696,16 +1611,12 @@ class PizzaGame:
         self.kitchen = Kitchen(self.settings.grid_size)
         self.pizza_manager = PizzaManager()
         self.hud = HUD(self.settings)
-        self.input_manager = InputManager()  # Add this line
         self.counters = [
             KitchenCounter(-150, -450, 0, width=300, depth=80),  # Ingredient counter
             KitchenCounter(100, 150, 0, width=200, depth=80)     # delivery counter
         ]
         self.order_generator = OrderGenerator()
         self.last_time = 0
-        self.pizza_cost = 0  # Track the cost of the current pizza
-        self.pizza_making_active = False  # Flag for 2D pizza-making window
-        self.current_customer = None  # Track the customer being served
         
     def reset_game(self):
         self.settings = GameSettings()
@@ -1716,17 +1627,6 @@ class PizzaGame:
     def start_game(self):
         self.settings.started = True
         self.last_time = glutGet(GLUT_ELAPSED_TIME) / 1000.0
-
-    def start_pizza_making(self):
-        """Start the 2D pizza-making process."""
-        self.pizza_making_active = True
-        self.pizza_cost = 0  # Reset cost for the new pizza
-        self.pizza_manager.pizza_station.create_pizza()
-
-    def finish_pizza_making(self):
-        """Finish the pizza-making process and return to the 3D game."""
-        self.pizza_making_active = False
-        self.player.pick_up_pizza(self.pizza_manager.pizza_station.get_pizza())
         
     def update(self):
         if not self.settings.started or self.settings.game_over:
@@ -1740,14 +1640,11 @@ class PizzaGame:
         # Update time remaining
         self.settings.time_remaining -= delta_time
         
-        if self.pizza_making_active:
-            # Update the 2D pizza-making process
-            self.update_pizza_making(delta_time)
-        else:
-            # Update the 3D game logic
-            self.pizza_manager.update(delta_time, self.player)
-            # Update orders
-            failures = self.order_generator.update(delta_time, self.settings)
+        # Update pizza manager
+        self.pizza_manager.update(delta_time, self.player)
+        
+        # Update orders
+        failures = self.order_generator.update(delta_time, self.settings)
         
         # Check for game over conditions
         if self.settings.time_remaining <= 0 or self.settings.mistakes >= self.settings.mistakes_limit:
@@ -1757,216 +1654,98 @@ class PizzaGame:
         if self.settings.score >= self.settings.current_level * 500:
             self.settings.current_level += 1
             self.settings.time_remaining = 180  # Reset timer for next level
-
-    def update_pizza_making(self, delta_time):
-        """Handle the 2D pizza-making process."""
-        if not self.pizza_manager.pizza_station.pizza:
-            return
-
-        # Example logic for adding ingredients
-        if self.input_manager.is_key_pressed(b'd'):  # Add dough
-            if not self.pizza_manager.pizza_station.pizza.base_added:
-                self.pizza_manager.pizza_station.pizza.add_ingredient(
-                    Ingredient("dough", 0, 0, 0)
-                )
-                self.pizza_cost += 5  # Example cost for dough
-
-        if self.input_manager.is_key_pressed(b's'):  # Add sauce
-            if not self.pizza_manager.pizza_station.pizza.sauce_added:
-                self.pizza_manager.pizza_station.pizza.add_ingredient(
-                    Ingredient("sauce", 0, 0, 0)
-                )
-                self.pizza_cost += 2  # Example cost for sauce
-
-        if self.input_manager.is_key_pressed(b'c'):  # Add cheese
-            if not self.pizza_manager.pizza_station.pizza.cheese_added:
-                self.pizza_manager.pizza_station.pizza.add_ingredient(
-                    Ingredient("cheese", 0, 0, 0)
-                )
-                self.pizza_cost += 3  # Example cost for cheese
-
-        if self.input_manager.is_key_pressed(b'v'):  # Add vegetable topping
-            self.pizza_manager.pizza_station.pizza.add_ingredient(
-                Ingredient("vegetable1", 0, 0, 0)
-            )
-            self.pizza_cost += 1  # Example cost for vegetable
-
-        if self.input_manager.is_key_pressed(b'm'):  # Add meat topping
-            self.pizza_manager.pizza_station.pizza.add_ingredient(
-                Ingredient("meat1", 0, 0, 0)
-            )
-            self.pizza_cost += 4  # Example cost for meat
-
-        # Finish pizza-making process
-        if self.input_manager.is_key_pressed(b'f'):  # Finish pizza
-            if self.pizza_manager.pizza_station.pizza.is_complete():
-                self.finish_pizza_making()
-        
+            
     def render(self):
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
         glLoadIdentity()
         glViewport(0, 0, self.settings.window_width, self.settings.window_height)
         
-        if self.pizza_making_active:
-            # Render the 2D pizza-making window
-            self.render_pizza_making()
-        else:
-            # Render the 3D game
-            self.camera.setup()
-            self.camera.position_camera(self.player)
-            self.kitchen.draw()
-            # Draw counters
-            for counter in self.counters:
-                counter.draw()
-            # Draw all pizza-related elements
-            self.pizza_manager.draw()
-            # Draw player
-            self.player.draw()
-            # Draw HUD elements
-            self.hud.draw()
+        self.camera.setup()
+        self.camera.position_camera(self.player)
+        
+        # Draw kitchen environment
+        self.kitchen.draw()
+        
+        # Draw counters
+        for counter in self.counters:
+            counter.draw()
+        
+        # Draw all pizza-related elements
+        self.pizza_manager.draw()
+        
+        # Draw player
+        self.player.draw()
+        
+        # Draw HUD elements
+        self.hud.draw()
         
         glutSwapBuffers()
 
-    def render_pizza_making(self):
-        """Render the 2D pizza-making process."""
-        from final_pizza_making import render_pizza_making_screen
-        render_pizza_making_screen(self.pizza_manager.pizza_station.pizza, self.pizza_cost)
+# Global game instance
+game = None
 
-    def handle_customer_interaction(self):
-        """Handle interaction with the customer at the counter."""
-        if self.current_customer:
-            if self.player.holding_pizza:
-                pizza = self.player.holding_pizza
-                self.player.holding_pizza = None
-                if pizza.matches_order(self.current_customer.order):
-                    self.settings.score += int(self.pizza_cost * 2.5)
-                    self.current_customer.happiness = 100
-                else:
-                    self.settings.score += int(self.pizza_cost * 0.8)
-                    self.current_customer.happiness = 0
-                self.current_customer.served = True
-                self.current_customer = None
+def initialize_game():
+    global game
+    game = PizzaGame()
 
-    def keyboard_callback(self, key, x, y):
-        if not self.settings.started:
-            self.start_game()
-            return
+def idle_callback():
+    game.update()
+    glutPostRedisplay()
 
-        if self.pizza_making_active:
-            # Handle keyboard input for the 2D pizza-making process
-            if key == b'd':  # Add dough
-                if not self.pizza_manager.pizza_station.pizza.base_added:
-                    self.pizza_manager.pizza_station.pizza.add_ingredient(
-                        Ingredient("dough", 0, 0, 0)
-                    )
-                    self.pizza_cost += 5  # Example cost for dough
-            elif key == b's':  # Add sauce
-                if not self.pizza_manager.pizza_station.pizza.sauce_added:
-                    self.pizza_manager.pizza_station.pizza.add_ingredient(
-                        Ingredient("sauce", 0, 0, 0)
-                    )
-                    self.pizza_cost += 2  # Example cost for sauce
-            elif key == b'c':  # Add cheese
-                if not self.pizza_manager.pizza_station.pizza.cheese_added:
-                    self.pizza_manager.pizza_station.pizza.add_ingredient(
-                        Ingredient("cheese", 0, 0, 0)
-                    )
-                    self.pizza_cost += 3  # Example cost for cheese
-            elif key == b'v':  # Add vegetable topping
-                self.pizza_manager.pizza_station.pizza.add_ingredient(
-                    Ingredient("vegetable1", 0, 0, 0)
-                )
-                self.pizza_cost += 1  # Example cost for vegetable
-            elif key == b'm':  # Add meat topping
-                self.pizza_manager.pizza_station.pizza.add_ingredient(
-                    Ingredient("meat1", 0, 0, 0)
-                )
-                self.pizza_cost += 4  # Example cost for meat
-            elif key == b'f':  # Finish pizza
-                if self.pizza_manager.pizza_station.pizza.is_complete():
-                    self.finish_pizza_making()
-        else:
-            # Handle keyboard input for the 3D game
-            if key == b'w':  # Move forward
-                self.player.move_forward()
-            elif key == b's':  # Move backward
-                self.player.move_backward()
-            elif key == b'a':  # Move left
-                self.player.move_left()
-            elif key == b'd':  # Move right
-                self.player.move_right()
-            elif key == b'q':  # Turn left
-                self.player.turn_left()
-            elif key == b'e':  # Turn right
-                self.player.turn_right()
-            elif key == b'f' and self.player.near_pizza_table:
-                self.start_pizza_making()
-            elif key == b'f' and self.current_customer:
-                self.handle_customer_interaction()
-            self.input_manager.key_down(key)
+def display_callback():
+    game.render()
 
-# Update keyboard callback function
 def keyboard_callback(key, x, y):
-    game.keyboard_callback(key, x, y)
-
-def keyboard_up_callback(key, x, y):
-    game.input_manager.key_up(key)
+    if not game.settings.started:
+        game.start_game()
+        return
+        
+    if key == b'w':
+        game.player.move_forward()
+    elif key == b's':
+        game.player.move_backward()
+    elif key == b'a':
+        game.player.move_left()
+    elif key == b'd':
+        game.player.move_right()
+    elif key == b'q':
+        game.player.turn_left()
+    elif key == b'e':
+        game.player.turn_right()
+    elif key == b'c':
+        game.camera.toggle_mode()
+    elif key == b'r' and game.settings.game_over:
+        game.reset_game()
+    elif key == b' ':
+        # Interact with nearest object
+        pass
 
 def special_key_callback(key, x, y):
     if key == GLUT_KEY_UP:
-        game.camera.move("up")  # Zoom in
+        game.camera.move("up")
     elif key == GLUT_KEY_DOWN:
-        game.camera.move("down")  # Zoom out
+        game.camera.move("down")
     elif key == GLUT_KEY_LEFT:
-        game.camera.move("left")  # Rotate camera left
+        game.camera.move("left")
     elif key == GLUT_KEY_RIGHT:
-        game.camera.move("right")  # Rotate camera right
+        game.camera.move("right")
 
 def mouse_callback(button, state, x, y):
     pass  # We'll use mouse events for pizza making 
 
-# Add this before the main() function
-def initialize_game():
-    """Initialize the game state and create global game instance"""
-    global game
-    game = PizzaGame()
-    
-    # Initialize OpenGL settings
-    glEnable(GL_DEPTH_TEST)
-    glEnable(GL_COLOR_MATERIAL)
-    glClearColor(0.0, 0.0, 0.0, 0.0)  # Black background
-    
-
-# Add this if not already present
-def display_callback():
-    """GLUT display callback"""
-    game.render()
-
-def idle_callback():
-    """GLUT idle callback"""
-    game.update()
-    glutPostRedisplay()
-
 def main():
-    # Initialize GLUT first
     glutInit()
     glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH)
     
-    # Create window before any OpenGL calls
-    glutInitWindowSize(1200, 600)
+    initialize_game()
+    glutInitWindowSize(game.settings.window_width, game.settings.window_height)  # Now 1200x600
     glutInitWindowPosition(0, 0)
     glutCreateWindow(b"Pizza Ready")
     
-    # Now initialize OpenGL settings after window creation
     glEnable(GL_DEPTH_TEST)
     
-    # Initialize game after OpenGL context is created
-    initialize_game()
-    
-    # Register callbacks
     glutDisplayFunc(display_callback)
-    glutKeyboardFunc(keyboard_callback) 
-    glutKeyboardUpFunc(keyboard_up_callback)
+    glutKeyboardFunc(keyboard_callback)
     glutSpecialFunc(special_key_callback)
     glutMouseFunc(mouse_callback)
     glutIdleFunc(idle_callback)
@@ -1976,4 +1755,4 @@ def main():
 
 if __name__ == '__main__':
     main()
-
+     
