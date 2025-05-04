@@ -263,8 +263,12 @@ class Player(Entity):
             self.holding_pizza.draw()
             glPopMatrix()
         
+        # Update the popup message based on order status
         if self.near_pizza_table:
-            game.hud.draw_text(300, 300, "Press F to start making pizza")  # Popup message
+            if game.pizza_manager.customer_manager.received_order:
+                game.hud.draw_text(300, 300, "Press P to start making pizza")
+            else:
+                game.hud.draw_text(300, 300, "No pizza order is received")
         
         glPopMatrix()
 
@@ -519,14 +523,16 @@ class IngredientStation(Entity):
             return Ingredient("sauce", *self.position, (0.8, 0.1, 0.1))
         elif self.ingredient_type == "cheese":
             return Ingredient("cheese", *self.position, (1.0, 0.8, 0.0))
-        elif self.ingredient_type == "vegetable1":
-            return Ingredient("vegetable1", *self.position, (0.1, 0.8, 0.1))
-        elif self.ingredient_type == "vegetable2":
-            return Ingredient("vegetable2", *self.position, (0.8, 0.1, 0.8))
-        elif self.ingredient_type == "meat1":
-            return Ingredient("meat1", *self.position, (0.7, 0.3, 0.3))
-        elif self.ingredient_type == "meat2":
-            return Ingredient("meat2", *self.position, (0.5, 0.2, 0.2))
+        elif self.ingredient_type == "sausage":
+            return Ingredient("sausage", *self.position, (0.7, 0.4, 0.3))
+        elif self.ingredient_type == "peperonni":
+            return Ingredient("peperonni", *self.position, (0.8, 0.2, 0.2))
+        elif self.ingredient_type == "onion":
+            return Ingredient("onion", *self.position, (0.9, 0.9, 0.6))
+        elif self.ingredient_type == "olives":
+            return Ingredient("olives", *self.position, (0.1, 0.4, 0.1))
+        elif self.ingredient_type == "oregano":
+            return Ingredient("oregano", *self.position, (0.6, 0.8, 0.4))
     
     def draw(self):
         glPushMatrix()
@@ -571,8 +577,7 @@ class Pizza(Entity):
             self.cheese_added = True
             self.ingredients.append(ingredient)
             return True
-        elif (("vegetable" in ingredient.name or "meat" in ingredient.name) 
-              and self.cheese_added):
+        elif ingredient.name in ["sausage", "peperonni", "onion", "olives", "oregano"] and self.cheese_added:
             self.ingredients.append(ingredient)
             return True
         return False
@@ -646,6 +651,7 @@ class Pizza(Entity):
                     glColor3f(1.0, 0.8, 0.0)
                     glTranslatef(0, 0, height)
                     gluDisk(gluNewQuadric(), 0, 27, 20, 1)
+                    height += 1
                     height += 1
                 elif "vegetable" in ingredient.name:
                     # Randomly place vegetables on the pizza
@@ -899,19 +905,19 @@ class DeliveryStation(Entity):
 class Order:
     def __init__(self, level):
         self.level = level
-        self.required_ingredients = ["dough", "sauce", "cheese"]
+        self.required_ingredients = ["sauce", "cheese"]  # Base ingredients (excluding dough)
         self.time_limit = 60 + 30 * level  # Seconds to complete
         self.time_remaining = self.time_limit
         self.completed = False
         self.expired = False
-        
+
         # Add random toppings based on level difficulty
         num_toppings = random.randint(0, min(level, 4))
-        toppings = ["vegetable1", "vegetable2", "meat1", "meat2"]
+        toppings = ["sausage", "peperonni", "onion", "olives", "oregano"]
         random.shuffle(toppings)
         for i in range(num_toppings):
             self.required_ingredients.append(toppings[i])
-    
+
     def update(self, delta_time):
         if not self.completed and not self.expired:
             self.time_remaining -= delta_time
@@ -929,17 +935,17 @@ class Customer(Entity):
         self.served = False
         self.patience = random.randint(30, 60)  # Seconds before happiness starts dropping
         
-        # Assign random colors for variety
+        # Assign random colors for varietyt
         self.colors = {
             'body': (
-                random.uniform(0.3, 0.9),  # Random R
-                random.uniform(0.3, 0.9),  # Random G
-                random.uniform(0.3, 0.9)   # Random B
+                random.randint(30, 220)/255,  # Random R
+                random.randint(30, 220)/255,  # Random G
+                random.randint(30, 220)/255   # Random B
             ),
             'head': (
-                random.uniform(0.6, 1.0),  # Random R (skin tone)
-                random.uniform(0.4, 0.8),  # Random G (skin tone)
-                random.uniform(0.2, 0.6)   # Random B (skin tone)
+                245/255,  #  R (skin tone)
+                194/255,  #  G (skin tone)
+                166/255   #  B (skin tone)
             ),
             'eyes': (1.0, 1.0, 1.0),  # White eyes
             'mouth': (0.0, 0.0, 0.0)  # Black mouth
@@ -1068,77 +1074,9 @@ class Customer(Entity):
                     self.body_parts['arms']['height'], 8, 2)
         glPopMatrix()
         
-        # Draw order bubble
-        if not self.served:
-            self._draw_order_bubble()
-        
-        glPopMatrix()
-    
-    def _draw_order_bubble(self):
-        glPushMatrix()
-        glTranslatef(30, 30, 0)
-        
-        # Order bubble background
-        glColor3f(1, 1, 1)
-        glutSolidSphere(20, 10, 10)
-        
-        # Draw ingredients in bubble
-        for i, ingredient in enumerate(self.order.required_ingredients):
-            if ingredient == "dough":
-                continue  # Skip drawing dough in bubble
-            
-            angle = i * 45
-            dist = 10
-            x = dist * math.cos(math.radians(angle))
-            y = dist * math.sin(math.radians(angle))
-            
-            glPushMatrix()
-            glTranslatef(x, y, 0)
-            glScalef(0.5, 0.5, 0.5)
-            
-            if ingredient == "sauce":
-                glColor3f(0.8, 0.1, 0.1)
-                glutSolidSphere(5, 10, 10)
-            elif ingredient == "cheese":
-                glColor3f(1.0, 0.8, 0.0)
-                glutSolidCube(10)
-            elif "vegetable" in ingredient:
-                glColor3f(0.1, 0.8, 0.1)
-                glutSolidCube(10)
-            elif "meat" in ingredient:
-                glColor3f(0.7, 0.3, 0.3)
-                gluCylinder(gluNewQuadric(), 5, 5, 2, 10, 10)
-            
-            glPopMatrix()
-        
-        glPopMatrix()
-        
-        # Draw timer bar
-        timer_percentage = max(0, min(self.order.time_remaining / self.order.time_limit, 1))
-        
-        glPushMatrix()
-        glTranslatef(0, 0, 30)
-        
-        # Background timer bar
-        glColor3f(0.2, 0.2, 0.2)
-        glPushMatrix()
-        glScalef(40, 5, 5)
-        glutSolidCube(1)
-        glPopMatrix()
-        
-        # Progress timer bar
-        if timer_percentage > 0.6:
-            glColor3f(0.1, 0.8, 0.1)  # Green
-        elif timer_percentage > 0.3:
-            glColor3f(1.0, 0.8, 0.0)  # Yellow
-        else:
-            glColor3f(0.8, 0.1, 0.1)  # Red
-            
-        glPushMatrix()
-        glTranslatef(-(40)/2 + (40 * timer_percentage)/2, 0, 0)
-        glScalef(40 * timer_percentage, 5, 5)
-        glutSolidCube(1)
-        glPopMatrix()
+        # Remove the order bubble
+        # if not self.served:
+        #     self._draw_order_bubble()
         
         glPopMatrix()
 
@@ -1366,7 +1304,9 @@ class OrderArea(Entity):
         self.width = 200
         self.depth = 40
         self.height = 100
-        
+        self.current_order = None  # Track the current order to display
+        self.display_message = None  # Custom message to display
+
     def draw(self):
         glPushMatrix()
         glTranslatef(*self.position)
@@ -1394,18 +1334,28 @@ class OrderArea(Entity):
     def _draw_menu_board(self):
         # Draw menu board
         glPushMatrix()
-        glTranslatef(0, -self.depth/2 - 5, self.height + 40)
-        glRotatef(30, 1, 0, 0)  # Angle the menu board
-        
+        glTranslatef(0, 0, self.height + 50)  # Position the board above the counter
+
         # Board background
         glColor3f(0.2, 0.2, 0.2)  # Dark gray
         glPushMatrix()
-        glScalef(180, 5, 70)
+        glScalef(180, 5, 70)  # Adjust the size of the board
         glutSolidCube(1)
         glPopMatrix()
-        
-        # Menu items will be rendered by the HUD system
-        
+
+        # Display the current order or a custom message
+        glColor3f(1, 1, 1)  # White text
+        if self.display_message:
+            glRasterPos3f(-70, -20, 0)  # Center the message
+            for ch in self.display_message:
+                glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, ord(ch))
+        elif self.current_order:
+            # Render each ingredient on a new line
+            for i, ingredient in enumerate(self.current_order.required_ingredients):
+                glRasterPos3f(-70, -20, 30 - i * 10)  # Adjust position for better alignment
+                for ch in ingredient:
+                    glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, ord(ch))
+
         glPopMatrix()
 
 class KitchenCounter(Entity):
@@ -1467,17 +1417,18 @@ class PizzaManager:
             IngredientStation("dough", -250, 150, 30, color=(0.9, 0.8, 0.6)),
             IngredientStation("sauce", -150, 150, 30, color=(0.8, 0.1, 0.1)),
             IngredientStation("cheese", -50, 150, 30, color=(1.0, 0.8, 0.0)),
-            IngredientStation("vegetable1", 50, 150, 30, color=(0.1, 0.8, 0.1)),
-            IngredientStation("vegetable2", 150, 150, 30, color=(0.1, 0.6, 0.1)),
-            IngredientStation("meat1", 250, 150, 30, color=(0.7, 0.3, 0.3)),
-            IngredientStation("meat2", 350, 150, 30, color=(0.6, 0.2, 0.2))
+            IngredientStation("sausage", 50, 150, 30, color=(0.7, 0.4, 0.3)),
+            IngredientStation("peperonni", 150, 150, 30, color=(0.8, 0.2, 0.2)),
+            IngredientStation("onion", 250, 150, 30, color=(0.9, 0.9, 0.6)),
+            IngredientStation("olives", 350, 150, 30, color=(0.1, 0.4, 0.1)),
+            IngredientStation("oregano", 450, 150, 30, color=(0.6, 0.8, 0.4))
         ]
         # Move oven beside the pizza-making table
         self.oven = Oven(-150, -300, 30)
         self.delivery_station = DeliveryStation(100, 150, 80)
         self.customer_manager = CustomerManager()
         self.shelf = Shelf(-450, -500, 0)
-
+        
     def update(self, delta_time, player):
         self.oven.update()
         self.customer_manager.update(delta_time)
@@ -1487,7 +1438,7 @@ class PizzaManager:
             if player.distance_to(station) < 50 and not player.holding_ingredient:
                 player.pick_up_ingredient(station.get_ingredient())
                 break
-                
+        
         if player.distance_to(self.pizza_station) < 50:
             if player.holding_ingredient:
                 player.place_ingredient(self.pizza_station.pizza)
@@ -1523,7 +1474,6 @@ class PizzaManager:
         # Draw all kitchen elements
         for station in self.ingredient_stations:
             station.draw()
-        
         self.pizza_station.draw()
         self.oven.draw()
         self.delivery_station.draw()
@@ -1550,7 +1500,7 @@ class OrderGenerator:
         # Update existing orders
         completed_orders = []
         failed_orders = []
-        
+            
         for order in self.active_orders:
             if order.expired:
                 failed_orders.append(order)
@@ -1564,7 +1514,7 @@ class OrderGenerator:
         # Remove completed and failed orders
         for order in completed_orders:
             self.active_orders.remove(order)
-            
+                    
         for order in failed_orders:
             self.active_orders.remove(order)
             
@@ -1572,65 +1522,80 @@ class OrderGenerator:
 
 class CustomerManager:
     def __init__(self):
-        self.customers = []
-        self.waiting_customers = []
-        self.max_customers = 3
-        self.max_waiting = 6
+        self.customers = []  # Customers at the counter
+        self.waiting_customers = []  # Customers in the waiting area
+        self.max_customers = 1  # Only 1 customer at the counter
+        self.max_waiting = 4  # Maximum 4 customers in the waiting area
         self.spawn_timer = 0
         self.spawn_interval = 20  # Seconds between customer spawns
         self.waiting_area = CustomerWaitingArea(-450, 400, 0)  # Position in corner opposite to oven
         self.order_area = OrderArea(-300, 150, 0)  # Near delivery station
+        self.received_order = False  # Change from None to False
+        self.display_message = None  # Custom message to display
         
     def update(self, delta_time):
         self.spawn_timer += delta_time
         
-        # Spawn new customers if we have space in waiting area
+        # Spawn new customers if we have space in the waiting area
         if self.spawn_timer >= self.spawn_interval and len(self.waiting_customers) < self.max_waiting:
-            # Create a new customer at the waiting area
             new_customer = Customer(0, 0, 0, random.randint(1, 3))
-            
             # Position at a free seat in the waiting area
             if len(self.waiting_customers) < len(self.waiting_area.seating_positions):
                 pos = self.waiting_area.seating_positions[len(self.waiting_customers)]
                 new_customer.position = [pos[0], pos[1], pos[2] + 30]  # Adjust height to sit on seat
-                new_customer.status = "waiting"
                 self.waiting_customers.append(new_customer)
                 self.spawn_timer = 0
         
-        # Move customers from waiting to order area when space available
+        # Move customers from waiting area to the counter if space is available
         if len(self.customers) < self.max_customers and len(self.waiting_customers) > 0:
             next_customer = self.waiting_customers.pop(0)
-            next_customer.status = "ordering"
-            
-            # Position at the counter
+            # Position the customer slightly behind the counter
             next_customer.position = [
-                self.order_area.position[0] + (len(self.customers) * 80) - 80, 
-                self.order_area.position[1] + 50, 
+                self.order_area.position[0],
+                self.order_area.position[1] + 50,  # Move behind the table
                 self.order_area.position[2]
             ]
             self.customers.append(next_customer)
-            
+            self.order_area.current_order = next_customer.order  # Set the current order for the menu board
+        
         # Update existing customers
         for customer in self.customers:
             customer.update(delta_time)
-            
+
         for customer in self.waiting_customers:
-            # Waiting customers don't have active orders yet
-            customer.waiting_time += delta_time
-            
+            customer.waiting_time += delta_time  # Waiting customers don't have active orders yet
+            customer.update(delta_time)
+    
+    def receive_order(self, player):
+        """Receive an order from the customer."""
+        for customer in self.customers:
+            distance = player.distance_to(customer)
+            if distance < 100:  # Interaction range
+                # Mark the order as received
+                self.received_order = True  # Change to boolean
+                self.current_order = customer.order
+                self.order_area.current_order = None
+                self.order_area.display_message = "Order is received"
+                
+                print(f"Order received! Required ingredients: {customer.order.required_ingredients}")
+                return True
+        return False
+    
     def remove_customer(self, customer):
         if customer in self.customers:
             self.customers.remove(customer)
-            
+            self.order_area.current_order = None  # Clear the menu board when the customer leaves
+            self.received_order = False  # Reset when customer leaves
+    
     def draw(self):
         # Draw the physical waiting area
         self.waiting_area.draw()
         self.order_area.draw()
         
-        # Draw customers at the order counter
+        # Draw customers at the counter
         for customer in self.customers:
             customer.draw()
-        
+
         # Draw waiting customers
         for customer in self.waiting_customers:
             customer.draw()
@@ -1645,12 +1610,10 @@ class HUD:
             font = self.font
             
         glColor3f(1, 1, 1)
-        
         glMatrixMode(GL_PROJECTION)
         glPushMatrix()
         glLoadIdentity()
         gluOrtho2D(0, self.game_settings.window_width, 0, self.game_settings.window_height)  # Use new window size
-        
         glMatrixMode(GL_MODELVIEW)
         glPushMatrix()
         glLoadIdentity()
@@ -1663,8 +1626,7 @@ class HUD:
         glMatrixMode(GL_PROJECTION)
         glPopMatrix()
         glMatrixMode(GL_MODELVIEW)
-
-        
+    
     def draw(self):
         # Draw game information
         if not self.game_settings.started:
@@ -1688,6 +1650,481 @@ class HUD:
             # Draw instructions
             self.draw_text(10, 30, "WASD: Move, F: Interact, C: Camera, R: Restart")
 
+# --- Pizza Making Process (copied and adapted from pizza_making.py) ---
+
+class PizzaMakingProcess3D:
+    def __init__(self):
+        self.toppings = {
+            "sauce": False,
+            "cheese": False,
+            "sausage": False,
+            "pepperoni": False,
+            "onion": False,
+            "black_olive": False,
+            "oregano": False
+        }
+        self.pizza_toppings = []
+        self.bread_before_oven = False
+        self.bread_after_oven = False
+        self.pizza_in_box = False
+        self.pizza_box_open = True
+        self.pizza_box_closed = False
+        self.cooking_in_progress = False
+        self.cooking_start_time = 0
+        self.cooking_duration = 2  # seconds
+        self.game_over = False
+
+        self.dough_position_display = (-440, -150, 0)
+        self.pizza_position = (-300, 40, 0)
+        self.pizza_in_box_position = (500, -150, 0)
+        self.oven_position = (300, 0, 0)
+        self.box_position = (500, -150, 0)
+        self.topping_positions = {
+            "sauce": (-600, 200, 0),
+            "cheese": (-470, 200, 0),
+            "sausage": (-340, 200, 0),
+            "pepperoni": (-210, 200, 0),
+            "onion": (-80, 200, 0),
+            "black_olive": (50, 200, 0),
+            "oregano": (180, 200, 0)
+        }
+        self.instructions = [
+            "Press 'R' to restart",
+            "Click on open box to close it after placing pizza",
+            "Click on cooked pizza to place it in the open box",
+            "Click on oven to cook pizza (2 seconds)",
+            "Click once pizza to apply selected toppings",
+            "Click once toppings to select them",
+            "Click on dough to place it on the table"
+        ]
+
+    def update(self):
+        import time
+        if self.cooking_in_progress:
+            current_time = time.time()
+            if current_time - self.cooking_start_time >= self.cooking_duration:
+                self.cooking_in_progress = False
+                self.bread_before_oven = False
+                self.bread_after_oven = True
+
+    def handle_mouse(self, button, state, x, y, width, height):
+        if self.game_over:
+            return
+
+        if button == GLUT_LEFT_BUTTON and state == GLUT_DOWN:
+            c_X, c_y, _ = self.convert_coordinate(x, y, width, height)
+            # Dough (circle)
+            dx = c_X - self.dough_position_display[0]
+            dy = c_y - self.dough_position_display[1]
+            if math.hypot(dx, dy) < 60:
+                if not self.bread_before_oven and not self.bread_after_oven and not self.pizza_in_box:
+                    self.bread_before_oven = True
+                    self.pizza_toppings = []
+
+            # Toppings (circle)
+            for topping, position in self.topping_positions.items():
+                dx = c_X - position[0]
+                dy = c_y - position[1]
+                if math.hypot(dx, dy) < 40 and topping not in self.pizza_toppings:
+                    self.toppings[topping] = not self.toppings[topping]
+
+            # Pizza (circle)
+            dx = c_X - self.pizza_position[0]
+            dy = c_y - self.pizza_position[1]
+            if self.bread_before_oven and not self.cooking_in_progress:
+                if math.hypot(dx, dy) < 53:
+                    for topping, selected in self.toppings.items():
+                        if selected and topping not in self.pizza_toppings:
+                            self.pizza_toppings.append(topping)
+                            self.toppings[topping] = False
+
+            # Oven (rectangle)
+            oven_cx, oven_cy = self.oven_position[0], self.oven_position[1]
+            oven_w, oven_h = 150, 150
+            if self.bread_before_oven and not self.cooking_in_progress and not self.bread_after_oven:
+                if (oven_cx - oven_w//2 <= c_X <= oven_cx + oven_w//2 and
+                    oven_cy - oven_h//2 <= c_y <= oven_cy + oven_h//2):
+                    import time
+                    self.cooking_in_progress = True
+                    self.cooking_start_time = time.time()
+
+            # Move pizza to box (circle)
+            dx = c_X - self.pizza_position[0]
+            dy = c_y - self.pizza_position[1]
+            if self.bread_after_oven and not self.pizza_in_box:
+                if math.hypot(dx, dy) < 53:
+                    self.bread_after_oven = False
+                    self.pizza_in_box = True
+                    self.pizza_box_open = True
+                    self.pizza_box_closed = False
+
+            # Close box (rectangle)
+            bx, by = self.box_position[0], self.box_position[1]
+            box_w, box_h = 160, 120
+            if self.pizza_in_box and self.pizza_box_open:
+                if (bx - box_w//2 <= c_X <= bx + box_w//2 and
+                    by - box_h//2 <= c_y <= by + box_h//2):
+                    self.pizza_in_box = False
+                    self.pizza_box_open = False
+                    self.pizza_box_closed = True
+                    self.game_over = True
+
+    def handle_keyboard(self, key):
+        if key == b'R' or key == b'r':
+            self.pizza_box_open = True
+            self.pizza_box_closed = False
+            self.pizza_in_box = False
+            self.bread_before_oven = False
+            self.bread_after_oven = False
+            self.pizza_toppings = []
+            for topping in self.toppings:
+                self.toppings[topping] = False
+            self.game_over = False
+
+    def convert_coordinate(self, x, y, width, height):
+        wx = (x / width) * 1200 - 600
+        wy = ((height - y) / height) * 600 - 300
+        return wx, wy, 0
+
+    def draw(self, width, height):
+        glClearColor(1.0, 1.0, 1.0, 1.0)
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+        glMatrixMode(GL_PROJECTION)
+        glPushMatrix()
+        glLoadIdentity()
+        gluOrtho2D(-600, 600, -300, 300)
+        glMatrixMode(GL_MODELVIEW)
+        glPushMatrix()
+        glLoadIdentity()
+
+        self.draw_rect3d(-900, -350, -60, 1800, 700, 40, (0.5, 0.5, 0.5))
+        self.draw_rect3d(-900, -350, -100, 1800, 700, 0, (0.4, 0.7, 1))
+        self.draw_toppings_bar()
+        self.draw_dough()
+        self.draw_instructions()
+        self.draw_oven()
+        self.draw_pizza_box()
+        self.draw_pizza()
+        self.draw_pizza_in_box()
+
+        glPopMatrix()
+        glMatrixMode(GL_PROJECTION)
+        glPopMatrix()
+        glMatrixMode(GL_MODELVIEW)
+        glutSwapBuffers()
+
+    def draw_circle3d(self, x, y, z, radius, color):
+        glColor3f(*color)
+        glBegin(GL_POLYGON)
+        for i in range(360):
+            angle = i * math.pi / 180
+            glVertex3f(x + radius * math.cos(angle), y + radius * math.sin(angle), z)
+        glEnd()
+
+    def draw_rect3d(self, x, y, z, width, height, depth, color):
+        glColor3f(*color)
+        glBegin(GL_QUADS)
+        glVertex3f(x, y, z)
+        glVertex3f(x + width, y, z)
+        glVertex3f(x + width, y + height, z)
+        glVertex3f(x, y + height, z)
+        glEnd()
+
+    def draw_text3d(self, x, y, z, text):
+        glColor3f(0, 0, 0)
+        glRasterPos3f(x, y, z)
+        for c in text:
+            glutBitmapCharacter(GLUT_BITMAP_9_BY_15, ord(c))
+
+    def draw_dough(self):
+        self.draw_rect3d(self.pizza_position[0] - 60, self.pizza_position[1] - 60, 5, 120, 120, 10, (0.5, 0.35, 0.18))
+        self.draw_text3d(self.pizza_position[0] - 50, self.pizza_position[1] - 80, 20, "Pizza Board")
+        self.draw_rect3d(self.dough_position_display[0] - 70, self.dough_position_display[1] - 70, 0, 140, 140, 10, (0.5, 0.4, 0.5))
+        self.draw_circle3d(self.dough_position_display[0], self.dough_position_display[1], 10, 60, (0.9, 0.8, 0.7))
+        self.draw_text3d(self.dough_position_display[0] - 20, self.dough_position_display[1] - 80, 20, "Dough")
+
+    def draw_toppings_bar(self):
+        self.draw_rect3d(-700, 350, 0, 1100, -750, 10, (0.7, 0.5, 0.3))
+        for topping, pos in self.topping_positions.items():
+            self.draw_rect3d(pos[0] - 45, pos[1] - 45, 0, 90, 90, 10, (0.7, 0.5, 0.3))
+            if topping == "sauce":
+                self.draw_circle3d(pos[0], pos[1], 10, 40, (1, 0, 0))
+                self.draw_text3d(pos[0] - 30, pos[1] - 70, 20, "Sauce")
+            elif topping == "cheese":
+                self.draw_circle3d(pos[0], pos[1], 10, 40, (1, 1, 0))
+                self.draw_text3d(pos[0] - 36, pos[1] - 70, 20, "Cheese")
+            elif topping == "sausage":
+                self.draw_circle3d(pos[0], pos[1], 10, 40, (0.6, 0.3, 0))
+                self.draw_rect3d(pos[0] - 25, pos[1] + 20, 12, 50, 5, 3, (0.5, 0.2, 0.1))
+                self.draw_rect3d(pos[0] - 35, pos[1] + 5, 12, 50, 5, 3, (0.5, 0.2, 0.1))
+                self.draw_rect3d(pos[0] - 15, pos[1] - 10, 12, 50, 5, 3, (0.5, 0.2, 0.1))
+                self.draw_rect3d(pos[0] - 25, pos[1] - 25, 12, 50, 5, 3, (0.5, 0.2, 0.1))
+                self.draw_text3d(pos[0] - 39, pos[1] - 70, 20, "Sausage")
+            elif topping == "pepperoni":
+                self.draw_circle3d(pos[0], pos[1], 10, 40, (1.0, 0.5, 0.0))
+                offsets = [(-15, 10), (10, 15), (-10, -15), (15, -10)]
+                for dx, dy in offsets:
+                    self.draw_circle3d(pos[0] + dx, pos[1] + dy, 12, 9, (0.9, 0.2, 0.2))
+                self.draw_text3d(pos[0] - 47, pos[1] - 70, 20, "Pepperoni")
+            elif topping == "onion":
+                self.draw_circle3d(pos[0], pos[1], 10, 40, (1, 0, 1))
+                glColor3f(0.9, 0.8, 1.0)
+                glBegin(GL_TRIANGLES)
+                glVertex3f(pos[0], pos[1] + 5, 12)
+                glVertex3f(pos[0] - 5, pos[1] - 5, 12)
+                glVertex3f(pos[0] + 5, pos[1] - 5, 12)
+                glEnd()
+                for i in range(6):
+                    angle = i * 60 * math.pi / 180
+                    cx = pos[0] + 20 * math.cos(angle)
+                    cy = pos[1] + 20 * math.sin(angle)
+                    size = 10
+                    glBegin(GL_TRIANGLES)
+                    glVertex3f(cx, cy, 12)
+                    glVertex3f(cx + size * math.cos(angle + 0.3), cy + size * math.sin(angle + 0.3), 12)
+                    glVertex3f(cx + size * math.cos(angle - 0.3), cy + size * math.sin(angle - 0.3), 12)
+                    glEnd()
+                self.draw_text3d(pos[0] - 18, pos[1] - 70, 20, "Onion")
+            elif topping == "black_olive":
+                self.draw_circle3d(pos[0], pos[1], 10, 40, (0, 0, 0))
+                self.draw_circle3d(pos[0]-10, pos[1]+15, 12, 5, (.2, .2, .2))
+                self.draw_circle3d(pos[0]+10, pos[1]+27, 12, 8, (.2, .2, .2))
+                self.draw_circle3d(pos[0]-18, pos[1]-18, 12, 4, (.2, 0.2, 0.2))
+                self.draw_circle3d(pos[0]+20, pos[1]-20, 12, 6, (0.2, 0.2, 0.2))
+                self.draw_text3d(pos[0] - 27, pos[1] - 70, 20, "Olives")
+            elif topping == "oregano":
+                self.draw_circle3d(pos[0], pos[1], 10, 40, (0, 0.3, 0))
+                self.draw_circle3d(pos[0]+10, pos[1]+15, 12, 5, (0,.7,0))
+                self.draw_circle3d(pos[0]-10, pos[1]+27, 12, 8, (0,.7,0))
+                self.draw_text3d(pos[0] - 30, pos[1] - 70, 20, "Oregano")
+            if self.toppings[topping] and topping not in self.pizza_toppings:
+                glLineWidth(3.0)
+                glColor3f(1, 0.5, 0)
+                glBegin(GL_LINE_LOOP)
+                for i in range(360):
+                    angle = i * math.pi / 180
+                    glVertex3f(pos[0] + 28 * math.cos(angle), pos[1] + 28 * math.sin(angle), 20)
+                glEnd()
+
+    def draw_pizza(self):
+        if self.bread_before_oven and not self.cooking_in_progress:
+            self.draw_circle3d(self.pizza_position[0], self.pizza_position[1], 10, 53, (0.9, 0.8, 0.7))
+            z = 11
+            for topping in self.pizza_toppings:
+                if topping == "sauce":
+                    self.draw_circle3d(self.pizza_position[0], self.pizza_position[1], z, 49, (0.8, 0.2, 0.1))
+                    z += 1
+                elif topping == "cheese":
+                    self.draw_circle3d(self.pizza_position[0], self.pizza_position[1], z, 47, (1.0, 0.9, 0.4))
+                    z += 1
+                elif topping == "sausage":
+                    self.draw_rect3d(self.pizza_position[0] - 25, self.pizza_position[1] + 20, z, 50, 5, 3, (0.5, 0.2, 0.1))
+                    self.draw_rect3d(self.pizza_position[0] - 35, self.pizza_position[1] + 5, z, 50, 5, 3, (0.5, 0.2, 0.1))
+                    self.draw_rect3d(self.pizza_position[0] - 15, self.pizza_position[1] - 10, z, 50, 5, 3, (0.5, 0.2, 0.1))
+                    self.draw_rect3d(self.pizza_position[0] - 25, self.pizza_position[1] - 25, z, 50, 5, 3, (0.5, 0.2, 0.1))
+                    z += 1
+                elif topping == "pepperoni":
+                    for i in range(8):
+                        angle = i * 45 * math.pi / 180
+                        x = self.pizza_position[0] + math.cos(angle) * 30
+                        y = self.pizza_position[1] + math.sin(angle) * 30
+                        self.draw_circle3d(x, y, z, 7, (1.0, 0.5, 0.0))
+                    z += 1
+                elif topping == "onion":
+                    for i in range(6):
+                        angle = i * 60 * math.pi / 180
+                        cx = self.pizza_position[0] + 20 * math.cos(angle)
+                        cy = self.pizza_position[1] + 20 * math.sin(angle)
+                        size = 18
+                        glColor3f(0.8, 0.6, 1.0)
+                        glBegin(GL_TRIANGLES)
+                        glVertex3f(cx, cy, z)
+                        glVertex3f(cx + size * math.cos(angle + 0.3), cy + size * math.sin(angle + 0.3), z)
+                        glVertex3f(cx + size * math.cos(angle - 0.3), cy + size * math.sin(angle - 0.3), z)
+                        glEnd()
+                    z += 1
+                elif topping == "black_olive":
+                    for i in range(7):
+                        angle = i * 51.4 * math.pi / 180
+                        x = self.pizza_position[0] + math.cos(angle) * 32
+                        y = self.pizza_position[1] + math.sin(angle) * 32
+                        self.draw_circle3d(x, y, z, 6, (0.2, 0.2, 0.2))
+                    z += 1
+                elif topping == "oregano":
+                    glPointSize(2.0)
+                    glBegin(GL_POINTS)
+                    glColor3f(0, 0.5, 0)
+                    for i in range(100):
+                        angle = i * 3.6 * math.pi / 180
+                        distance = 20 + 25 * (i % 5) / 5.0
+                        x = self.pizza_position[0] + math.cos(angle) * distance
+                        y = self.pizza_position[1] + math.sin(angle) * distance
+                        glVertex3f(x, y, z)
+                    glEnd()
+                    z += 1
+        if self.bread_after_oven and not self.pizza_in_box:
+            self.draw_circle3d(self.pizza_position[0], self.pizza_position[1], 10, 53, (0.8, 0.6, 0.3))
+            z = 11
+            for topping in self.pizza_toppings:
+                if topping == "sauce":
+                    self.draw_circle3d(self.pizza_position[0], self.pizza_position[1], z, 49, (0.7, 0.15, 0.05))
+                    z += 1
+                elif topping == "cheese":
+                    self.draw_circle3d(self.pizza_position[0], self.pizza_position[1], z, 47, (0.9, 0.8, 0.4))
+                    z += 1
+                elif topping == "sausage":
+                    self.draw_rect3d(self.pizza_position[0] - 25, self.pizza_position[1] + 20, z, 50, 5, 3, (0.5, 0.2, 0.1))
+                    self.draw_rect3d(self.pizza_position[0] - 35, self.pizza_position[1] + 5, z, 50, 5, 3, (0.5, 0.2, 0.1))
+                    self.draw_rect3d(self.pizza_position[0] - 15, self.pizza_position[1] - 10, z, 50, 5, 3, (0.5, 0.2, 0.1))
+                    self.draw_rect3d(self.pizza_position[0] - 25, self.pizza_position[1] - 25, z, 50, 5, 3, (0.5, 0.2, 0.1))
+                    z += 1
+                elif topping == "pepperoni":
+                    for i in range(8):
+                        angle = i * 45 * math.pi / 180
+                        x = self.pizza_position[0] + math.cos(angle) * 30
+                        y = self.pizza_position[1] + math.sin(angle) * 30
+                        self.draw_circle3d(x, y, z, 7, (0.7, 0.35, 0.2))
+                    z += 1
+                elif topping == "onion":
+                    for i in range(6):
+                        angle = i * 60 * math.pi / 180
+                        cx = self.pizza_position[0] + 20 * math.cos(angle)
+                        cy = self.pizza_position[1] + 20 * math.sin(angle)
+                        size = 18
+                        glColor3f(0.3, .1, .5)
+                        glBegin(GL_TRIANGLES)
+                        glVertex3f(cx, cy, z)
+                        glVertex3f(cx + size * math.cos(angle + 0.3), cy + size * math.sin(angle + 0.3), z)
+                        glVertex3f(cx + size * math.cos(angle - 0.3), cy + size * math.sin(angle - 0.3), z)
+                        glEnd()
+                    z += 1
+                elif topping == "black_olive":
+                    for i in range(7):
+                        angle = i * 51.4 * math.pi / 180
+                        x = self.pizza_position[0] + math.cos(angle) * 32
+                        y = self.pizza_position[1] + math.sin(angle) * 32
+                        self.draw_circle3d(x, y, z, 6, (0.1, 0.1, 0.1))
+                    z += 1
+                elif topping == "oregano":
+                    glPointSize(2.0)
+                    glBegin(GL_POINTS)
+                    glColor3f(0, 0.4, 0)
+                    for i in range(100):
+                        angle = i * 3.6 * math.pi / 180
+                        distance = 20 + 25 * (i % 5) / 5.0
+                        x = self.pizza_position[0] + math.cos(angle) * distance
+                        y = self.pizza_position[1] + math.sin(angle) * distance
+                        glVertex3f(x, y, z)
+                    glEnd()
+                    z += 1
+
+    def draw_pizza_in_box(self):
+        if self.pizza_in_box and (self.pizza_box_open or self.pizza_box_closed):
+            glDisable(GL_DEPTH_TEST)
+            self.draw_circle3d(self.pizza_in_box_position[0], self.pizza_in_box_position[1]-15, 30, 53, (0.8, 0.6, 0.3))
+            z = 31
+            for topping in self.pizza_toppings:
+                if topping == "sauce":
+                    self.draw_circle3d(self.pizza_in_box_position[0], self.pizza_in_box_position[1]-15, z, 49, (0.7, 0.15, 0.05))
+                    z += 1
+                elif topping == "cheese":
+                    self.draw_circle3d(self.pizza_in_box_position[0], self.pizza_in_box_position[1]-15, z, 47, (0.9, 0.8, 0.4))
+                    z += 1
+                elif topping == "sausage":
+                    self.draw_rect3d(self.pizza_in_box_position[0] - 25, self.pizza_in_box_position[1] + 12, z, 50, 5, 3, (0.5, 0.2, 0.1))
+                    self.draw_rect3d(self.pizza_in_box_position[0] - 35, self.pizza_in_box_position[1] - 8, z, 50, 5, 3, (0.5, 0.2, 0.1))
+                    self.draw_rect3d(self.pizza_in_box_position[0] - 15, self.pizza_in_box_position[1] - 28, z, 50, 5, 3, (0.5, 0.2, 0.1))
+                    self.draw_rect3d(self.pizza_in_box_position[0] - 25, self.pizza_in_box_position[1] - 48, z, 50, 5, 3, (0.5, 0.2, 0.1))
+                    z += 1
+                elif topping == "pepperoni":
+                    for i in range(8):
+                        angle = i * 45 * math.pi / 180
+                        x = self.pizza_in_box_position[0] + math.cos(angle) * 30
+                        y = self.pizza_in_box_position[1]-15 + math.sin(angle) * 30
+                        self.draw_circle3d(x, y, z, 7, (0.7, 0.35, 0.2))
+                    z += 1
+                elif topping == "onion":
+                    glColor3f(.3, .1, .5)
+                    for i in range(7):
+                        angle = i * 51.4 * math.pi / 180
+                        cx = self.pizza_in_box_position[0] + math.cos(angle) * 25
+                        cy = self.pizza_in_box_position[1]-15 + math.sin(angle) * 25
+                        size = 18
+                        glBegin(GL_TRIANGLES)
+                        glVertex3f(cx, cy, z)
+                        glVertex3f(cx + size * math.cos(angle + 0.3), cy + size * math.sin(angle + 0.3), z)
+                        glVertex3f(cx + size * math.cos(angle - 0.3), cy + size * math.sin(angle - 0.3), z)
+                        glEnd()
+                    z += 1
+                elif topping == "black_olive":
+                    for i in range(7):
+                        angle = i * 51.4 * math.pi / 180
+                        x = self.pizza_in_box_position[0] + math.cos(angle) * 32
+                        y = self.pizza_in_box_position[1]-15 + math.sin(angle) * 32
+                        self.draw_circle3d(x, y, z, 6, (0.1, 0.1, 0.1))
+                    z += 1
+                elif topping == "oregano":
+                    glPointSize(2.0)
+                    glBegin(GL_POINTS)
+                    glColor3f(0, 0.4, 0)
+                    for i in range(100):
+                        angle = i * 3.6 * math.pi / 180
+                        distance = 20 + 25 * (i % 5) / 5.0
+                        x = self.pizza_in_box_position[0] + math.cos(angle) * distance
+                        y = self.pizza_in_box_position[1]-15 + math.sin(angle) * distance
+                        glVertex3f(x, y, z)
+                    glEnd()
+                    z += 1
+            glEnable(GL_DEPTH_TEST)
+
+    def draw_oven(self):
+        self.draw_rect3d(self.oven_position[0] - 75, self.oven_position[1] - 75, 0, 150, 150, 60, (0.25, 0.13, 0.05))
+        self.draw_rect3d(self.oven_position[0] - 60, self.oven_position[1] - 60, 60, 120, 120, 10, (0.0, 0.0, 0.0))
+        self.draw_rect3d(self.oven_position[0] - 40, self.oven_position[1] - 40, 70, 80, 80, 5, (0.0, 0.0, 0.0))
+        if self.cooking_in_progress:
+            self.draw_circle3d(self.oven_position[0], self.oven_position[1] + 65, 80, 5, (1, 0, 0))
+        else:
+            self.draw_circle3d(self.oven_position[0], self.oven_position[1] + 65, 80, 5, (0, 1, 0))
+        self.draw_text3d(self.oven_position[0] - 20, self.oven_position[1] + 85, 90, "OVEN")
+
+    def draw_pizza_box(self):
+        base_z = 0
+        base_height = 10
+        side_thickness = 5
+        side_height = 25
+        lid_thickness = 3
+        lid_length = 120
+        box_w = 160
+        box_d = 120
+
+        if self.pizza_box_open:
+            self.draw_rect3d(self.box_position[0] - box_w//2, self.box_position[1] - box_d//2, base_z, box_w, box_d, base_height, (0.8, 0.6, 0.4))
+            self.draw_rect3d(self.box_position[0] - box_w//2, self.box_position[1] - box_d//2, base_z + base_height, side_thickness, box_d, side_height, (0.7, 0.5, 0.3))
+            self.draw_rect3d(self.box_position[0] + box_w//2 - side_thickness, self.box_position[1] - box_d//2, base_z + base_height, side_thickness, box_d, side_height, (0.7, 0.5, 0.3))
+            self.draw_rect3d(self.box_position[0] - box_w//2, self.box_position[1] - box_d//2, base_z + base_height, box_w, side_thickness, side_height, (0.7, 0.5, 0.3))
+            self.draw_rect3d(self.box_position[0] - box_w//2, self.box_position[1] + box_d//2 - side_thickness, base_z + base_height, box_w, side_thickness, side_height, (0.7, 0.5, 0.3))
+            glPushMatrix()
+            glTranslatef(self.box_position[0], self.box_position[1] + box_d//2, base_z + base_height + side_height)
+            glRotatef(-80, 1, 0, 0)
+            self.draw_rect3d(-box_w/2, -lid_thickness/2, 0, box_w, lid_thickness, lid_length, (0.9, 0.7, 0.5))
+            glPopMatrix()
+            glPushMatrix()
+            glTranslatef(self.box_position[0], self.box_position[1] + box_d//2 + 2, base_z + base_height + side_height + lid_length - 10)
+            glRotatef(-80, 1, 0, 0)
+            self.draw_circle3d(0, 0, 2, 10, (0.6, 0.4, 0.2))
+            glPopMatrix()
+            self.draw_text3d(self.box_position[0] - 30, self.box_position[1] + 110, base_z + base_height + side_height + 10, "OPEN BOX")
+        elif self.pizza_box_closed:
+            self.draw_rect3d(self.box_position[0] - box_w//2, self.box_position[1] - box_d//2, base_z, box_w, box_d, base_height + side_height, (0.8, 0.6, 0.4))
+            self.draw_rect3d(self.box_position[0] - box_w//2, self.box_position[1] - box_d//2, base_z + base_height + side_height, box_w, box_d, lid_thickness, (0.9, 0.7, 0.5))
+            self.draw_text3d(self.box_position[0] - 40, self.box_position[1], base_z + base_height + side_height + lid_thickness + 10, "CLOSED BOX")
+
+    def draw_instructions(self):
+        y_pos = -250
+        for line in self.instructions:
+            self.draw_text3d(-250, y_pos, 100, line)
+            y_pos += 20
+
 class PizzaGame:
     def __init__(self):
         self.settings = GameSettings()
@@ -1706,32 +2143,54 @@ class PizzaGame:
         self.pizza_cost = 0  # Track the cost of the current pizza
         self.pizza_making_active = False  # Flag for 2D pizza-making window
         self.current_customer = None  # Track the customer being served
+        self.pizza_making_process = None
+        self.in_pizza_making_window = False
+        self.pizza_making_interface_active = False  # <--- Add this flag
         
     def reset_game(self):
         self.settings = GameSettings()
         self.player = Player()
         self.pizza_manager = PizzaManager()
         self.order_generator = OrderGenerator()
+        self.settings = GameSettings()
         
     def start_game(self):
         self.settings.started = True
         self.last_time = glutGet(GLUT_ELAPSED_TIME) / 1000.0
 
     def start_pizza_making(self):
-        """Start the 2D pizza-making process."""
-        self.pizza_making_active = True
-        self.pizza_cost = 0  # Reset cost for the new pizza
-        self.pizza_manager.pizza_station.create_pizza()
+        # Only start if not already in pizza making interface
+        if self.pizza_manager.customer_manager.received_order and not self.pizza_making_interface_active and not self.in_pizza_making_window:
+            self.pizza_making_active = True
+            self.in_pizza_making_window = True
+            self.pizza_making_interface_active = True
+            self.pizza_making_process = PizzaMakingProcess3D()
+            print("Pizza making process started")
+        else:
+            print("Cannot start making pizza without an order or already in pizza making.")
 
     def finish_pizza_making(self):
-        """Finish the pizza-making process and return to the 3D game."""
         self.pizza_making_active = False
-        self.player.pick_up_pizza(self.pizza_manager.pizza_station.get_pizza())
-        
+        self.in_pizza_making_window = False
+        self.pizza_making_interface_active = False
+        # Save toppings for order matching
+        if self.pizza_making_process:
+            self.player.holding_pizza = Pizza()
+            for topping in self.pizza_making_process.pizza_toppings:
+                self.player.holding_pizza.add_ingredient(Ingredient(topping, 0, 0, 0))
+        self.pizza_making_process = None
+
     def update(self):
         if not self.settings.started or self.settings.game_over:
             return
-            
+
+        # Prevent any update logic except pizza making when in pizza making window
+        if self.in_pizza_making_window and self.pizza_making_process:
+            self.pizza_making_process.update()
+            if self.pizza_making_process.pizza_box_closed:
+                self.finish_pizza_making()
+            return  # <--- This ensures no further update logic runs
+
         # Calculate delta time
         current_time = glutGet(GLUT_ELAPSED_TIME) / 1000.0
         delta_time = current_time - self.last_time
@@ -1748,7 +2207,7 @@ class PizzaGame:
             self.pizza_manager.update(delta_time, self.player)
             # Update orders
             failures = self.order_generator.update(delta_time, self.settings)
-        
+            
         # Check for game over conditions
         if self.settings.time_remaining <= 0 or self.settings.mistakes >= self.settings.mistakes_limit:
             self.settings.game_over = True
@@ -1758,11 +2217,20 @@ class PizzaGame:
             self.settings.current_level += 1
             self.settings.time_remaining = 180  # Reset timer for next level
 
+        if self.in_pizza_making_window and self.pizza_making_process:
+            self.pizza_making_process.update()
+            # Only finish when pizza is put in box and box is closed
+            if self.pizza_making_process.pizza_box_closed:
+                self.finish_pizza_making()
+            return  # Prevent further update logic while in pizza making
+        else:
+            pass
+    
     def update_pizza_making(self, delta_time):
         """Handle the 2D pizza-making process."""
         if not self.pizza_manager.pizza_station.pizza:
             return
-
+        
         # Example logic for adding ingredients
         if self.input_manager.is_key_pressed(b'd'):  # Add dough
             if not self.pizza_manager.pizza_station.pizza.base_added:
@@ -1770,33 +2238,29 @@ class PizzaGame:
                     Ingredient("dough", 0, 0, 0)
                 )
                 self.pizza_cost += 5  # Example cost for dough
-
         if self.input_manager.is_key_pressed(b's'):  # Add sauce
             if not self.pizza_manager.pizza_station.pizza.sauce_added:
                 self.pizza_manager.pizza_station.pizza.add_ingredient(
                     Ingredient("sauce", 0, 0, 0)
                 )
                 self.pizza_cost += 2  # Example cost for sauce
-
         if self.input_manager.is_key_pressed(b'c'):  # Add cheese
             if not self.pizza_manager.pizza_station.pizza.cheese_added:
                 self.pizza_manager.pizza_station.pizza.add_ingredient(
                     Ingredient("cheese", 0, 0, 0)
                 )
                 self.pizza_cost += 3  # Example cost for cheese
-
         if self.input_manager.is_key_pressed(b'v'):  # Add vegetable topping
             self.pizza_manager.pizza_station.pizza.add_ingredient(
                 Ingredient("vegetable1", 0, 0, 0)
             )
             self.pizza_cost += 1  # Example cost for vegetable
-
         if self.input_manager.is_key_pressed(b'm'):  # Add meat topping
             self.pizza_manager.pizza_station.pizza.add_ingredient(
                 Ingredient("meat1", 0, 0, 0)
             )
             self.pizza_cost += 4  # Example cost for meat
-
+        
         # Finish pizza-making process
         if self.input_manager.is_key_pressed(b'f'):  # Finish pizza
             if self.pizza_manager.pizza_station.pizza.is_complete():
@@ -1807,9 +2271,10 @@ class PizzaGame:
         glLoadIdentity()
         glViewport(0, 0, self.settings.window_width, self.settings.window_height)
         
-        if self.pizza_making_active:
-            # Render the 2D pizza-making window
-            self.render_pizza_making()
+        if self.in_pizza_making_window and self.pizza_making_process:
+            self.pizza_making_process.draw(self.settings.window_width, self.settings.window_height)
+            glutSwapBuffers()
+            return  # Prevent further rendering while in pizza making
         else:
             # Render the 3D game
             self.camera.setup()
@@ -1826,88 +2291,58 @@ class PizzaGame:
             self.hud.draw()
         
         glutSwapBuffers()
-
+    
     def render_pizza_making(self):
-        """Render the 2D pizza-making process."""
-        from final_pizza_making import render_pizza_making_screen
+        from pizza_making import render_pizza_making_screen
         render_pizza_making_screen(self.pizza_manager.pizza_station.pizza, self.pizza_cost)
-
+        
     def handle_customer_interaction(self):
         """Handle interaction with the customer at the counter."""
-        if self.current_customer:
-            if self.player.holding_pizza:
-                pizza = self.player.holding_pizza
-                self.player.holding_pizza = None
-                if pizza.matches_order(self.current_customer.order):
-                    self.settings.score += int(self.pizza_cost * 2.5)
-                    self.current_customer.happiness = 100
-                else:
-                    self.settings.score += int(self.pizza_cost * 0.8)
-                    self.current_customer.happiness = 0
-                self.current_customer.served = True
-                self.current_customer = None
-
-    def keyboard_callback(self, key, x, y):
-        if not self.settings.started:
-            self.start_game()
-            return
-
-        if self.pizza_making_active:
-            # Handle keyboard input for the 2D pizza-making process
-            if key == b'd':  # Add dough
-                if not self.pizza_manager.pizza_station.pizza.base_added:
-                    self.pizza_manager.pizza_station.pizza.add_ingredient(
-                        Ingredient("dough", 0, 0, 0)
-                    )
-                    self.pizza_cost += 5  # Example cost for dough
-            elif key == b's':  # Add sauce
-                if not self.pizza_manager.pizza_station.pizza.sauce_added:
-                    self.pizza_manager.pizza_station.pizza.add_ingredient(
-                        Ingredient("sauce", 0, 0, 0)
-                    )
-                    self.pizza_cost += 2  # Example cost for sauce
-            elif key == b'c':  # Add cheese
-                if not self.pizza_manager.pizza_station.pizza.cheese_added:
-                    self.pizza_manager.pizza_station.pizza.add_ingredient(
-                        Ingredient("cheese", 0, 0, 0)
-                    )
-                    self.pizza_cost += 3  # Example cost for cheese
-            elif key == b'v':  # Add vegetable topping
-                self.pizza_manager.pizza_station.pizza.add_ingredient(
-                    Ingredient("vegetable1", 0, 0, 0)
-                )
-                self.pizza_cost += 1  # Example cost for vegetable
-            elif key == b'm':  # Add meat topping
-                self.pizza_manager.pizza_station.pizza.add_ingredient(
-                    Ingredient("meat1", 0, 0, 0)
-                )
-                self.pizza_cost += 4  # Example cost for meat
-            elif key == b'f':  # Finish pizza
-                if self.pizza_manager.pizza_station.pizza.is_complete():
-                    self.finish_pizza_making()
-        else:
-            # Handle keyboard input for the 3D game
-            if key == b'w':  # Move forward
-                self.player.move_forward()
-            elif key == b's':  # Move backward
-                self.player.move_backward()
-            elif key == b'a':  # Move left
-                self.player.move_left()
-            elif key == b'd':  # Move right
-                self.player.move_right()
-            elif key == b'q':  # Turn left
-                self.player.turn_left()
-            elif key == b'e':  # Turn right
-                self.player.turn_right()
-            elif key == b'f' and self.player.near_pizza_table:
-                self.start_pizza_making()
-            elif key == b'f' and self.current_customer:
-                self.handle_customer_interaction()
-            self.input_manager.key_down(key)
+        print("handle_customer_interaction called.")  # Debug message
+        if self.pizza_manager.customer_manager.receive_order(self.player):
+            self.pizza_manager.customer_manager.order_area.display_message = "Order received!"
+            self.pizza_manager.customer_manager.received_order = True
 
 # Update keyboard callback function
 def keyboard_callback(key, x, y):
-    game.keyboard_callback(key, x, y)
+    if not game.settings.started:
+        game.start_game()
+        glutPostRedisplay()
+        return
+
+    # Only allow exiting pizza making interface when box is closed
+    if game.in_pizza_making_window and game.pizza_making_process:
+        game.pizza_making_process.handle_keyboard(key)
+        glutPostRedisplay()
+        return  # <--- Prevent further processing
+
+    # Existing movement controls...
+    
+    if key == b'p' or key == b'P':  # Check for P key
+        if game.player.near_pizza_table:
+            if game.pizza_manager.customer_manager.received_order and not game.pizza_making_interface_active:
+                game.start_pizza_making()
+                print("Starting pizza making process...")
+                glutPostRedisplay()
+            else:
+                print("Cannot start making pizza without an order or already in pizza making.")
+    if key == b'f':  # Interact key
+        print("F key pressed")  # Debug message
+        game.handle_customer_interaction()
+    # Existing movement and interaction logic...
+    if key == b'w':  # Move forward
+        game.player.move_forward()
+    elif key == b's':  # Move backward
+        game.player.move_backward()
+    elif key == b'a':  # Move left
+        game.player.move_left()
+    elif key == b'd':  # Move right
+        game.player.move_right()
+    elif key == b'q':  # Turn left
+        game.player.turn_left()
+    elif key == b'e':  # Turn right
+        game.player.turn_right()
+    glutPostRedisplay()
 
 def keyboard_up_callback(key, x, y):
     game.input_manager.key_up(key)
@@ -1923,7 +2358,12 @@ def special_key_callback(key, x, y):
         game.camera.move("right")  # Rotate camera right
 
 def mouse_callback(button, state, x, y):
-    pass  # We'll use mouse events for pizza making 
+    if game.in_pizza_making_window and game.pizza_making_process:
+        game.pizza_making_process.handle_mouse(button, state, x, y, game.settings.window_width, game.settings.window_height)
+        glutPostRedisplay()
+        return  # Prevent further processing
+    else:
+        pass  # We'll use mouse events for pizza making 
 
 # Add this before the main() function
 def initialize_game():
@@ -1936,7 +2376,6 @@ def initialize_game():
     glEnable(GL_COLOR_MATERIAL)
     glClearColor(0.0, 0.0, 0.0, 0.0)  # Black background
     
-
 # Add this if not already present
 def display_callback():
     """GLUT display callback"""
@@ -1972,6 +2411,7 @@ def main():
     glutIdleFunc(idle_callback)
     
     glutMainLoop()
+
 
 
 if __name__ == '__main__':
