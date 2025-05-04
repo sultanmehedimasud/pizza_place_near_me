@@ -263,8 +263,12 @@ class Player(Entity):
             self.holding_pizza.draw()
             glPopMatrix()
         
+        # Update the popup message based on order status
         if self.near_pizza_table:
-            game.hud.draw_text(300, 300, "Press F to start making pizza")  # Popup message
+            if game.pizza_manager.customer_manager.received_order:
+                game.hud.draw_text(300, 300, "Press P to start making pizza")
+            else:
+                game.hud.draw_text(300, 300, "No pizza order is received")
         
         glPopMatrix()
 
@@ -1526,7 +1530,7 @@ class CustomerManager:
         self.spawn_interval = 20  # Seconds between customer spawns
         self.waiting_area = CustomerWaitingArea(-450, 400, 0)  # Position in corner opposite to oven
         self.order_area = OrderArea(-300, 150, 0)  # Near delivery station
-        self.received_order = None  # Store received orders
+        self.received_order = False  # Change from None to False
         self.display_message = None  # Custom message to display
         
     def update(self, delta_time):
@@ -1563,23 +1567,25 @@ class CustomerManager:
             customer.update(delta_time)
     
     def receive_order(self, player):
-        # Check if the player is near a customer
+        """Receive an order from the customer."""
         for customer in self.customers:
             distance = player.distance_to(customer)
-            print(f"Distance to customer: {distance}")  # Debug message
             if distance < 100:  # Interaction range
-                print("Player is within range of the customer.")  # Debug message
                 # Mark the order as received
-                self.received_order = customer.order  # Store the customer's order
-                self.order_area.current_order = None  # Clear the menu board
-                self.order_area.display_message = "Order is received"  # Show message on the board
-        print("Player is not within range of any customer.")  # Debug message
+                self.received_order = True  # Change to boolean
+                self.current_order = customer.order
+                self.order_area.current_order = None
+                self.order_area.display_message = "Order is received"
+                
+                print(f"Order received! Required ingredients: {customer.order.required_ingredients}")
+                return True
         return False
     
     def remove_customer(self, customer):
         if customer in self.customers:
             self.customers.remove(customer)
             self.order_area.current_order = None  # Clear the menu board when the customer leaves
+            self.received_order = False  # Reset when customer leaves
     
     def draw(self):
         # Draw the physical waiting area
@@ -1675,10 +1681,12 @@ class PizzaGame:
         self.last_time = glutGet(GLUT_ELAPSED_TIME) / 1000.0
         
     def start_pizza_making(self):
-        """Start the 2D pizza-making process."""
-        self.pizza_making_active = True
-        self.pizza_cost = 0  # Reset cost for the new pizza
-        self.pizza_manager.pizza_station.create_pizza()
+        if self.pizza_manager.customer_manager.received_order:
+            self.pizza_making_active = True
+            self.pizza_manager.pizza_station.create_pizza()
+            print("Pizza making process started")
+        else:
+            print("Cannot start making pizza without an order")
         
     def finish_pizza_making(self):
         """Finish the pizza-making process and return to the 3D game."""
@@ -1789,37 +1797,8 @@ class PizzaGame:
         """Handle interaction with the customer at the counter."""
         print("handle_customer_interaction called.")  # Debug message
         if self.pizza_manager.customer_manager.receive_order(self.player):
-            self.pizza_manager.customer_manager.receive_order(self.player)
             self.pizza_manager.customer_manager.order_area.display_message = "Order received!"
-            self.pizza_manager.customer_manager.received_order = self.pizza_manager.customer_manager.current_order
-
-    def keyboard_callback(self, key, x, y):
-        if not self.settings.started:
-            self.start_game()
-            return
-
-        if self.pizza_making_active:
-            # Handle keyboard input for the 2D pizza-making process
-            pass
-        else:
-            # Handle keyboard input for the 3D game
-            if key == b'f':  # Interact key
-                print("F key pressed")  # Debug message
-                game.handle_customer_interaction()
-            # Existing movement and interaction logic...
-            if key == b'w':  # Move forward
-                game.player.move_forward()
-            elif key == b's':  # Move backward
-                game.player.move_backward()
-            elif key == b'a':  # Move left
-                game.player.move_left()
-            elif key == b'd':  # Move right
-                game.player.move_right()
-            elif key == b'q':  # Turn left
-                game.player.turn_left()
-            elif key == b'e':  # Turn right
-                game.player.turn_right()
-            self.input_manager.key_down(key)
+            self.pizza_manager.customer_manager.received_order = True
 
 # Update keyboard callback function
 def keyboard_callback(key, x, y):
@@ -1828,10 +1807,18 @@ def keyboard_callback(key, x, y):
         return
 
     if game.pizza_making_active:
-        # Handle keyboard input for the 2D pizza-making process
+        # Handle pizza making controls
         pass
     else:
-        # Handle keyboard input for the 3D game
+        # Existing movement controls...
+        
+        if key == b'p' or key == b'P':  # Check for P key
+            if game.player.near_pizza_table:
+                if game.pizza_manager.customer_manager.received_order:
+                    game.start_pizza_making()
+                    print("Starting pizza making process...")
+                else:
+                    print("Cannot start making pizza without an order!")
         if key == b'f':  # Interact key
             print("F key pressed")  # Debug message
             game.handle_customer_interaction()
