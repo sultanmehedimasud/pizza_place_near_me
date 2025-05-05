@@ -57,14 +57,15 @@ dough_position = (-300, 0, 0)
 pizza_position = (-300, 40, 0)
 pizza_in_box_position = (500, -150, 0)
 
+# Increase spacing between toppings
 topping_positions = {
-    "sauce": (-500, 200, 0),
-    "cheese": (-400, 200, 0),
-    "sausage": (-300, 200, 0),
-    "pepperoni": (-200, 200, 0),
-    "onion": (-100, 200, 0),
-    "black_olive": (0, 200, 0),
-    "oregano": (100, 200, 0)
+    "sauce": (-600, 200, 0),
+    "cheese": (-470, 200, 0),
+    "sausage": (-340, 200, 0),
+    "pepperoni": (-210, 200, 0),
+    "onion": (-80, 200, 0),
+    "black_olive": (50, 200, 0),
+    "oregano": (180, 200, 0)
 }
 
 dough_position_display = (-440, -150, 0)
@@ -144,28 +145,29 @@ def draw_dough():
     draw_text3d(dough_position_display[0] - 20, dough_position_display[1] - 80, 20, "Dough")
 
 def draw_toppings_bar():
-    draw_rect3d(-600, 350, 0, 800, -750, 10, (0.7, 0.4, 0.6))
+    # Make the bar wider to fit the new spacing
+    draw_rect3d(-700, 350, 0, 1100, -750, 10, (0.7, 0.5, 0.3))
     for topping, pos in topping_positions.items():
-        draw_rect3d(pos[0] - 45, pos[1] - 45, 0, 90, 90, 10, (0.5, 0.4, 0.5))
+        draw_rect3d(pos[0] - 45, pos[1] - 45, 0, 90, 90, 10, (0.7, 0.5, 0.3))
         if topping == "sauce":
             draw_circle3d(pos[0], pos[1], 10, 40, (1, 0, 0))
-            draw_text3d(pos[0] - 20, pos[1] - 60, 20, "Sauce")
+            draw_text3d(pos[0] - 30, pos[1] - 70, 20, "Sauce")
         elif topping == "cheese":
             draw_circle3d(pos[0], pos[1], 10, 40, (1, 1, 0))
-            draw_text3d(pos[0] - 26, pos[1] - 60, 20, "Cheese")
+            draw_text3d(pos[0] - 36, pos[1] - 70, 20, "Cheese")
         elif topping == "sausage":
             draw_circle3d(pos[0], pos[1], 10, 40, (0.6, 0.3, 0))
             draw_rect3d(pos[0] - 25, pos[1] + 20, 12, 50, 5, 3, (0.5, 0.2, 0.1))
             draw_rect3d(pos[0] - 35, pos[1] + 5, 12, 50, 5, 3, (0.5, 0.2, 0.1))
             draw_rect3d(pos[0] - 15, pos[1] - 10, 12, 50, 5, 3, (0.5, 0.2, 0.1))
             draw_rect3d(pos[0] - 25, pos[1] - 25, 12, 50, 5, 3, (0.5, 0.2, 0.1))
-            draw_text3d(pos[0] - 29, pos[1] - 60, 20, "Sausage")
+            draw_text3d(pos[0] - 39, pos[1] - 70, 20, "Sausage")
         elif topping == "pepperoni":
             draw_circle3d(pos[0], pos[1], 10, 40, (1.0, 0.5, 0.0))
             offsets = [(-15, 10), (10, 15), (-10, -15), (15, -10)]
             for dx, dy in offsets:
                 draw_circle3d(pos[0] + dx, pos[1] + dy, 12, 9, (0.9, 0.2, 0.2))
-            draw_text3d(pos[0] - 37, pos[1] - 60, 20, "Pepperoni")
+            draw_text3d(pos[0] - 47, pos[1] - 70, 20, "Pepperoni")
         elif topping == "onion":
             draw_circle3d(pos[0], pos[1], 10, 40, (1, 0, 1))
             glColor3f(0.9, 0.8, 1.0)
@@ -184,19 +186,24 @@ def draw_toppings_bar():
                 glVertex3f(cx + size * math.cos(angle + 0.3), cy + size * math.sin(angle + 0.3), 12)
                 glVertex3f(cx + size * math.cos(angle - 0.3), cy + size * math.sin(angle - 0.3), 12)
                 glEnd()
-            draw_text3d(pos[0] - 22, pos[1] - 60, 20, "Onion")
+            draw_text3d(pos[0] - 18, pos[1] - 70, 20, "Onion")
         elif topping == "black_olive":
             draw_circle3d(pos[0], pos[1], 10, 40, (0, 0, 0))
             draw_circle3d(pos[0]-10, pos[1]+15, 12, 5, (.2, .2, .2))
             draw_circle3d(pos[0]+10, pos[1]+27, 12, 8, (.2, .2, .2))
             draw_circle3d(pos[0]-18, pos[1]-18, 12, 4, (.2, 0.2, 0.2))
             draw_circle3d(pos[0]+20, pos[1]-20, 12, 6, (0.2, 0.2, 0.2))
-            draw_text3d(pos[0] - 27, pos[1] - 60, 20, "Olives")
+            draw_text3d(pos[0] - 27, pos[1] - 70, 20, "Olives")
         elif topping == "oregano":
-            draw_circle3d(pos[0], pos[1], 10, 40, (0, 0.3, 0))
-            draw_circle3d(pos[0]+10, pos[1]+15, 12, 5, (0,.7,0))
-            draw_circle3d(pos[0]-10, pos[1]+27, 12, 8, (0,.7,0))
-            draw_text3d(pos[0] - 30, pos[1] - 60, 20, "Oregano")
+            draw_circle3d(pos[0], pos[1], 10, 40, (1, 1, 1))
+            draw_circle3d(pos[0] + 10, pos[1] + 15, 12, 5, (0, 0.7, 0))
+            draw_circle3d(pos[0] - 12, pos[1] + 25, 12, 8, (0, 0.7, 0))
+            draw_circle3d(pos[0] + 18, pos[1] + 20, 12, 6, (0, 0.7, 0))
+            draw_circle3d(pos[0] - 20, pos[1] - 15, 12, 4, (0, 0.7, 0))
+            draw_circle3d(pos[0] + 25, pos[1] - 10, 12, 7, (0, 0.7, 0))
+            draw_circle3d(pos[0] - 15, pos[1] - 20, 12, 6, (0, 0.7, 0))
+            draw_circle3d(pos[0] + 5, pos[1] + 30, 12, 5, (0, 0.7, 0))
+            draw_text3d(pos[0] - 30, pos[1] - 70, 20, "Oregano")
         if toppings[topping] and topping not in pizza_toppings:
             glLineWidth(3.0)
             glColor3f(1, 0.5, 0)
@@ -384,9 +391,13 @@ def draw_pizza_in_box():
         glEnable(GL_DEPTH_TEST)
 
 def draw_oven():
-    draw_rect3d(oven_position[0] - 75, oven_position[1] - 75, 0, 150, 150, 60, (0.6, 0.6, 0.6))
-    draw_rect3d(oven_position[0] - 60, oven_position[1] - 60, 60, 120, 120, 10, (0.3, 0.3, 0.3))
-    draw_rect3d(oven_position[0] - 40, oven_position[1] - 40, 70, 80, 80, 5, (0.1, 0.1, 0.1))
+    # Oven base: dark brown
+    draw_rect3d(oven_position[0] - 75, oven_position[1] - 75, 0, 150, 150, 60, (0.25, 0.13, 0.05))
+    # Oven front: black
+    draw_rect3d(oven_position[0] - 60, oven_position[1] - 60, 60, 120, 120, 10, (0.0, 0.0, 0.0))
+    # Oven door: black
+    draw_rect3d(oven_position[0] - 40, oven_position[1] - 40, 70, 80, 80, 5, (0.0, 0.0, 0.0))
+    # Oven indicator: red if cooking, green if not
     if cooking_in_progress:
         draw_circle3d(oven_position[0], oven_position[1] + 65, 80, 5, (1, 0, 0))
     else:
@@ -440,7 +451,7 @@ def draw_pizza_box():
 def draw_instructions():
     y_pos = -250
     for line in instructions:
-        draw_text3d(-300, y_pos, 100, line)
+        draw_text3d(-150, y_pos, 100, line)
         y_pos += 20
 
 # --- 3D Mouse coordinate conversion (improved for perspective) ---
