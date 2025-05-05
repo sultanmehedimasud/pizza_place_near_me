@@ -1790,7 +1790,7 @@ class PizzaGame:
     
     def render_pizza_making(self):
         """Render the 2D pizza-making process."""
-        from final_pizza_making import render_pizza_making_screen
+        from pizza_making import render_pizza_making_screen
         render_pizza_making_screen(self.pizza_manager.pizza_station.pizza, self.pizza_cost)
         
     def handle_customer_interaction(self):
