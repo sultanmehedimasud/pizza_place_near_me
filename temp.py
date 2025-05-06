@@ -290,7 +290,7 @@ class Player(Entity):
         Check for collisions with objects and walls, and adjust the player's position accordingly.
         :param direction: The direction of movement ('forward', 'backward', 'left', 'right').
         """
-        collision_distance = 50  # Collision threshold
+        collision_distance = 100  # Collision threshold
 
         # Check collision with objects (including waiting area)
         for obj in (
@@ -340,7 +340,7 @@ class Player(Entity):
     def _collides_with_pizza_table(self, x, y):
         # Check collision with the pizza table
         pizza_table = game.pizza_manager.pizza_station
-        collision_distance = 120
+        collision_distance = 150
         if math.sqrt((x - pizza_table.position[0]) ** 2 + (y - pizza_table.position[1]) ** 2) < collision_distance:
             self.near_pizza_table = True
             return True
@@ -349,7 +349,7 @@ class Player(Entity):
 
     def _collides_with_objects(self, x, y):
         # Check collision with all objects in the game, including waiting area
-        collision_distance = 50
+        collision_distance = 75
         objects = (
             game.pizza_manager.ingredient_stations +
             [game.pizza_manager.oven, game.pizza_manager.delivery_station, game.pizza_manager.pizza_station] +
@@ -725,55 +725,34 @@ class DeliveryStation(Entity):
         glPopMatrix()
 
 class Order:
-    def __init__(self, level):
-        self.level = level
-        self.required_ingredients = ["sauce", "cheese"]  # Base ingredients (excluding dough)
-        self.time_limit = 60 + 30 * level  # Seconds to complete
-        self.time_remaining = self.time_limit
+    def __init__(self):
+        self.required_ingredients = ["sauce", "cheese"]
         self.completed = False
         self.expired = False
-
-        # Add random toppings based on level difficulty
-        num_toppings = random.randint(0, min(level, 4))
-        toppings = ["sausage", "pepperoni", "onion", "black_olive", "oregano"]
-        random.shuffle(toppings)
-        for i in range(num_toppings):
-            self.required_ingredients.append(toppings[i])
-
-    def update(self, delta_time):
-        if not self.completed and not self.expired:
-            self.time_remaining -= delta_time
-            if self.time_remaining <= 0:
-                self.expired = True
-                return True  # Order failed
-        return False
+        # No level, time_limit, or time_remaining
 
 class Customer(Entity):
-    def __init__(self, x, y, z, order_level):
+    def __init__(self, x, y, z):
         super().__init__(x, y, z)
-        self.order = Order(order_level)
-        self.happiness = 100  # 0-100 scale
-        self.waiting_time = 0
+        self.order = Order()
         self.served = False
-        self.patience = random.randint(30, 60)  # Seconds before happiness starts dropping
+        # Removed happiness, patience, waiting_time
 
-        # Assign random colors for varietyt
         self.colors = {
             'body': (
-                random.randint(30, 220)/255,  # Random R
-                random.randint(30, 220)/255,  # Random G
-                random.randint(30, 220)/255   # Random B
+                random.randint(30, 220)/255,
+                random.randint(30, 220)/255,
+                random.randint(30, 220)/255
             ),
             'head': (
-                245/255,  #  R (skin tone)
-                194/255,  #  G (skin tone)
-                166/255   #  B (skin tone)
+                245/255,
+                194/255,
+                166/255
             ),
-            'eyes': (1.0, 1.0, 1.0),  # White eyes
-            'mouth': (0.0, 0.0, 0.0)  # Black mouth
+            'eyes': (1.0, 1.0, 1.0),
+            'mouth': (0.0, 0.0, 0.0)
         }
 
-        # Customer body parts with properties
         self.body_parts = {
             'head': {'radius': 15, 'position': (0, 0, 70)},
             'torso': {'top_radius': 15, 'bottom_radius': 15, 'height': 60},
@@ -781,33 +760,18 @@ class Customer(Entity):
             'legs': {'top_radius': 7, 'bottom_radius': 5, 'height': 40}
         }
 
-    def update(self, delta_time):
-        if not self.served:
-            self.waiting_time += delta_time
-
-            # Reduce happiness if waiting too long
-            if self.waiting_time > self.patience:
-                self.happiness -= delta_time * 5  # Lose 5 happiness per second after patience expired
-
-            # Update order timer
-            return self.order.update(delta_time)
-        return False
+    # Removed update method (not used)
 
     def receive_pizza(self, pizza_game):
-        """Check if the pizza matches the customer's order."""
         if not self.served:
             self.served = True
             required_ingredients = set(self.order.required_ingredients)
             added_toppings = set(pizza_game.added_topping)
-
-            # Check if all required ingredients are present in the added toppings
             if required_ingredients.issubset(added_toppings):
                 self.order.completed = True
                 print("Pizza matches the customer's order!")
                 return True
             else:
-                # Wrong pizza
-                self.happiness = 0
                 print("Pizza does not match the customer's order!")
                 return False
         return False
@@ -815,100 +779,64 @@ class Customer(Entity):
     def draw(self):
         glPushMatrix()
         glTranslatef(*self.position)
-
-        # Set body color based on emotional state
+        # Set body color based on served state
         if self.served:
             if self.order.completed:
-                body_color = (0.1, 0.7, 0.3)  # Happy green
+                body_color = (0.1, 0.7, 0.3)
             else:
-                body_color = (0.8, 0.1, 0.1)  # Angry red
+                body_color = (0.8, 0.1, 0.1)
         else:
-            # Get base color but modify based on happiness
-            happiness_percent = max(0, min(self.happiness / 100, 1))
-            r = self.colors['body'][0] * (1.5 - happiness_percent)  # More red when unhappy
-            g = self.colors['body'][1] * happiness_percent          # More green when happy
-            b = self.colors['body'][2] * 0.5                        # Reduce blue component
-            body_color = (min(r, 1.0), min(g, 1.0), min(b, 1.0))
+            body_color = self.colors['body']
 
-        # Draw customer body (cylinder)
         glColor3f(*body_color)
         gluCylinder(gluNewQuadric(),
                     self.body_parts['torso']['top_radius'],
                     self.body_parts['torso']['bottom_radius'],
                     self.body_parts['torso']['height'], 10, 10)
 
-        # Draw customer head (sphere)
         glTranslatef(0, 0, self.body_parts['torso']['height'] + 10)
         glColor3f(*self.colors['head'])
         glutSolidSphere(self.body_parts['head']['radius'], 10, 10)
 
-        # Draw customer face
-        # Eyes
         glColor3f(*self.colors['eyes'])
         glPushMatrix()
         glTranslatef(5, 10, 0)
         glutSolidSphere(3, 10, 10)
         glPopMatrix()
-
         glPushMatrix()
         glTranslatef(-5, 10, 0)
         glutSolidSphere(3, 10, 10)
         glPopMatrix()
 
-        # Mouth - smile or frown based on happiness
         glColor3f(*self.colors['mouth'])
         glPushMatrix()
         glTranslatef(0, 5, 0)
-        if self.served:
-            if self.order.completed:
-                # Happy smile
-                gluPartialDisk(gluNewQuadric(), 5, 8, 10, 1, 0, 180)
-            else:
-                # Sad frown
-                glRotatef(180, 0, 0, 1)
-                gluPartialDisk(gluNewQuadric(), 5, 8, 10, 1, 0, 180)
+        if self.served and self.order.completed:
+            gluPartialDisk(gluNewQuadric(), 5, 8, 10, 1, 0, 180)
         else:
-            happiness_percent = max(0, min(self.happiness / 100, 1))
-            if happiness_percent > 0.5:
-                # Neutral to happy
-                gluPartialDisk(gluNewQuadric(), 5, 8, 10, 1, 0, 180)
-            else:
-                # Neutral to sad
-                glRotatef(180, 0, 0, 1)
-                gluPartialDisk(gluNewQuadric(), 5, 8, 10, 1, 0, 180)
+            glRotatef(180, 0, 0, 1)
+            gluPartialDisk(gluNewQuadric(), 5, 8, 10, 1, 0, 180)
         glPopMatrix()
 
-        # Draw arms
         glPushMatrix()
-        glTranslatef(-self.body_parts['torso']['top_radius'] - 2,
-                     0,
-                     -self.body_parts['torso']['height'])
-        glRotatef(30, 0, 1, 0)  # Angle the arm outward
+        glTranslatef(-self.body_parts['torso']['top_radius'] - 2, 0, -self.body_parts['torso']['height'])
+        glRotatef(30, 0, 1, 0)
         glColor3f(*body_color)
         gluCylinder(gluNewQuadric(),
                     self.body_parts['arms']['top_radius'],
                     self.body_parts['arms']['bottom_radius'],
                     self.body_parts['arms']['height'], 8, 2)
         glPopMatrix()
-
         glPushMatrix()
-        glTranslatef(self.body_parts['torso']['top_radius'] + 2,
-                     0,
-                     -self.body_parts['torso']['height'])
-        glRotatef(-30, 0, 1, 0)  # Angle the arm outward
+        glTranslatef(self.body_parts['torso']['top_radius'] + 2, 0, -self.body_parts['torso']['height'])
+        glRotatef(-30, 0, 1, 0)
         glColor3f(*body_color)
         gluCylinder(gluNewQuadric(),
                     self.body_parts['arms']['top_radius'],
                     self.body_parts['arms']['bottom_radius'],
                     self.body_parts['arms']['height'], 8, 2)
         glPopMatrix()
-
-        # Remove the order bubble
-        # if not self.served:
-        #     self._draw_order_bubble()
-
         glPopMatrix()
-
 
 # Kitchen related classes and functionality
 class Kitchen:
@@ -1241,7 +1169,7 @@ class KitchenCounter(Entity):
 
 class PizzaManager:
     def __init__(self):
-        self.pizza_station = PizzaStation(-150, -450, 80)
+        self.pizza_station = PizzaStation(-100, -450, 80)
         self.ingredient_stations = [
             IngredientStation("dough", -250, 150, 30, color=(0.9, 0.8, 0.6)),
             IngredientStation("sauce", -150, 150, 30, color=(0.8, 0.1, 0.1)),
@@ -1253,7 +1181,7 @@ class PizzaManager:
             IngredientStation("oregano", 450, 150, 30, color=(0.6, 0.8, 0.4))
         ]
         # Move oven beside the pizza-making table
-        self.oven = Oven(-150, -300, 30)
+        self.oven = Oven(150, -325, 30)
         self.delivery_station = DeliveryStation(100, 150, 80)
         self.customer_manager = CustomerManager()
         self.shelf = Shelf(-450, -500, 0)
@@ -1267,14 +1195,14 @@ class PizzaManager:
                 player.pick_up_ingredient(station.get_ingredient())
                 break
 
-        if player.distance_to(self.pizza_station) < 50:
+        if player.distance_to(self.pizza_station) < 150:
             if player.holding_ingredient:
                 player.place_ingredient(self.pizza_station.pizza)
             elif not player.holding_pizza and self.pizza_station.pizza and self.pizza_station.pizza.is_complete():
                 player.pick_up_pizza(self.pizza_station.pizza)
                 self.pizza_station.pizza = None
 
-        if player.distance_to(self.oven) < 50:
+        if player.distance_to(self.oven) < 150:
             if player.holding_pizza:
                 self.oven.toggle_door()
                 if player.place_pizza(self.oven):
@@ -1286,11 +1214,11 @@ class PizzaManager:
                     player.pick_up_pizza(pizza)
                     self.oven.toggle_door()
 
-        if player.distance_to(self.delivery_station) < 70 and player.holding_pizza:
+        if player.distance_to(self.delivery_station) < 170 and player.holding_pizza:
             player.place_pizza(self.delivery_station)
 
         for customer in self.customer_manager.customers:
-            if player.distance_to(customer) < 50 and player.holding_pizza:
+            if player.distance_to(customer) < 150 and player.holding_pizza:
                 if player.place_pizza(customer):
                     self.customer_manager.remove_customer(customer)
                     break
@@ -1318,7 +1246,7 @@ class OrderGenerator:
 
         # Generate new orders based on level
         if self.order_timer >= self.order_interval and len(self.active_orders) < self.max_concurrent_orders:
-            new_order = Order(game_settings.current_level)
+            new_order = Order()
             self.active_orders.append(new_order)
             self.order_timer = 0
 
@@ -1332,9 +1260,6 @@ class OrderGenerator:
             elif order.completed:
                 completed_orders.append(order)
                 game_settings.score += 100 * game_settings.current_level
-            else:
-                if order.update(delta_time):
-                    game_settings.mistakes += 1
 
         # Remove completed and failed orders
         for order in completed_orders:
@@ -1352,7 +1277,7 @@ class CustomerManager:
         self.max_customers = 1  # Only 1 customer at the counter
         self.max_waiting = 4  # Maximum 4 customers in the waiting area
         self.spawn_timer = 0
-        self.spawn_interval = 20  # Seconds between customer spawns
+        self.spawn_interval = 7  # Reduced time between customer spawns (was 20)
         self.waiting_area = CustomerWaitingArea(-450, 400, 0)  # Position in corner opposite to oven
         self.order_area = OrderArea(-300, 150, 0)  # Near delivery station
         self.delivery_station_position = [100, 150, 30]  # Position of the delivery station
@@ -1364,7 +1289,7 @@ class CustomerManager:
 
         # Spawn new customers if we have space in the waiting area
         if self.spawn_timer >= self.spawn_interval and len(self.waiting_customers) < self.max_waiting:
-            new_customer = Customer(0, 0, 0, random.randint(1, 3))
+            new_customer = Customer(0, 0, 0)
             # Position at a free seat in the waiting area
             if len(self.waiting_customers) < len(self.waiting_area.seating_positions):
                 pos = self.waiting_area.seating_positions[len(self.waiting_customers)]
@@ -1384,18 +1309,10 @@ class CustomerManager:
             self.customers.append(next_customer)
             self.order_area.current_order = next_customer.order  # Set the current order for the menu board
 
-        # Update existing customers
-        for customer in self.customers:
-            customer.update(delta_time)
-
-        for customer in self.waiting_customers:
-            customer.waiting_time += delta_time  # Waiting customers don't have active orders yet
-            customer.update(delta_time)
-
     def receive_order(self, player):
         """Receive an order from the customer."""
         for customer in self.customers:
-            distance = player.distance_to(customer)
+            distance = player.distance_to(self.order_area)
             if distance < 150 and self.received_order == False:  # Interaction range
                 # Mark the order as received
                 self.received_order = True
@@ -2065,7 +1982,7 @@ class PizzaGame:
         self.hud = HUD(self.settings)
         self.input_manager = InputManager()  # Add this line
         self.counters = [
-            KitchenCounter(-150, -450, 0, width=300, depth=80),  # Ingredient counter
+            KitchenCounter(-100, -450, 0, width=300, depth=80),  # Ingredient counter
             KitchenCounter(100, 150, 0, width=200, depth=80)     # delivery counter
         ]
         self.order_generator = OrderGenerator()
@@ -2225,7 +2142,7 @@ def keyboard_callback(key, x, y):
             print("F key pressed")  # Debug message
             if game.player.holding_delivery_box:
                 for customer in game.pizza_manager.customer_manager.customers:
-                    if game.player.distance_to(game.pizza_manager.delivery_station) < 100:  # Interaction range
+                    if game.player.distance_to(game.pizza_manager.delivery_station) < 150:  # Interaction range
                         # Check if the pizza matches the customer's preference
                         if customer.receive_pizza(game):
                             payment = game.pizza_cost * 2.5  # Full payment
